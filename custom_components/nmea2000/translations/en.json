@@ -1,0 +1,39 @@
+{
+  "config": {
+    "error": {
+      "name_exists": "This device name is already in use, please choose a different one.",
+      "cannot_connect": "Failed to connect to the server. Please check the Baud Rate and port."
+    },
+    "step": {
+      "user": {
+        "title": "Connect to Smart 2000 USB Sensor",
+        "description": "Enter the device name, Port, Baudrate and specify which PGNs to include or exclude. For best performance only use the PGNs that you wish to use. You can always update this later.",
+        "data": {
+          "name": "USB Device Name",
+          "serial_port": "Serial Port Name",
+          "baudrate": "Baud Rate",
+          "pgn_include": "PGNs to Include (comma-separated list)",
+          "pgn_exclude": "PGNs to Exclude (comma-separated list)"
+        }
+      }
+    },
+    "success": {
+      "title": "Connection Successful",
+      "description": "You have successfully connected to Smart 2000 USB Sensor."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Smart 2000 USB Sensor",
+        "description": "Specify the Port, Baudrate and which PGNs to include or exclude. For best performance only use the PGNs that you wish to use.",
+        "data": {
+          "serial_port": "Serial Port Name",
+          "baudrate": "Baud Rate",
+          "pgn_include": "PGNs to Include (comma-separated list)",
+          "pgn_exclude": "PGNs to Exclude (comma-separated list)"
+        }
+      }
+    }
+  }
+}

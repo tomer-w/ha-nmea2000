@@ -1,0 +1,1 @@
+DOMAIN = "nmea2000"

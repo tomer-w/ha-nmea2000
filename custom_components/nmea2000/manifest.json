@@ -1,0 +1,13 @@
+{
+  "domain": "nmea2000",
+  "name": "NMEA 2000",
+  "documentation": "https://github.com/tomer-w/ha-nmea2000",
+  "dependencies": [],
+  "integration_type": "hub",
+  "requirements": [],
+  "codeowners": ["tomer-w"],
+  "version": "1.0",
+  "config_flow": true,
+  "iot_class": "local_push"
+}
+
