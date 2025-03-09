@@ -4,7 +4,7 @@
   "documentation": "https://github.com/tomer-w/ha-nmea2000",
   "dependencies": [],
   "integration_type": "hub",
-  "requirements": [],
+  "requirements": ["pyserial_asyncio", "nmea2000parser"],
   "codeowners": ["tomer-w"],
   "version": "1.0",
   "config_flow": true,
