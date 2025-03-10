@@ -10,13 +10,14 @@ from datetime import datetime, timedelta
 # Home Assistant Imports
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STOP
 
 # Setting up logging and configuring constants and default values
-from . import SerialSensor, TCPSensor
-from . import DOMAIN
+from .TCPSensor import TCPSensor
+from .SerialSensor import SerialSensor
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -84,6 +85,8 @@ async def async_setup_entry(
         )
         sensor = SerialSensor(
             name,
+            hass,
+            async_add_entities,
             serial_port,
             baudrate,
         )
@@ -93,6 +96,8 @@ async def async_setup_entry(
         _LOGGER.info(f"TCP sensor with name: {name}, IP: {ip}, port: {port}")
         sensor = TCPSensor(
             name,
+            hass,
+            async_add_entities,
             ip,
             port,
         )

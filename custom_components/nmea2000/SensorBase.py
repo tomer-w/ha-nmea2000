@@ -10,22 +10,19 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.components.sensor import SensorEntity
 import nmea2000parser
 
+
 _LOGGER = logging.getLogger(__name__)
 
 
 class SensorBase(SensorEntity):
-
     def __init__(
-        self,
-        name: str,
-        hass: HomeAssistant,
-        async_add_entities: AddEntitiesCallback
+        self, name: str, hass: HomeAssistant, async_add_entities: AddEntitiesCallback
     ) -> None:
         """Initialize the SensorBase."""
         self._name = name
         self.hass = hass
         self.async_add_entities = async_add_entities
-        self.parser = nmea2000parser.get_praser()
+        self.parser = nmea2000parser.get_parser()
         self.sensors = {}
 
     def process_frame(self, packet: bytearray) -> None:
@@ -33,10 +30,16 @@ class SensorBase(SensorEntity):
         if len(packet) < 5:  # E8 + Frame ID (4 bytes min)
             _LOGGER.error("Invalid packet length: %s", binascii.hexlify(packet))
             return
-        
+
         nmea2000Message = self.parser.process_packet(packet)
+        if nmea2000Message is None:
+            _LOGGER.debug(
+                f"skipping packet: {binascii.hexlify(packet)}. Might be fast packet."
+            )
+            return
+
         _LOGGER.debug(f"processed nmea message: {nmea2000Message}")
-        
+
         for field in nmea2000Message.fields:
             # Construct unique sensor name
             sensor_name = f"{self.name}_{self.id}_{field.id}"
@@ -45,21 +48,23 @@ class SensorBase(SensorEntity):
                 _LOGGER.debug(f"Creating new sensor for {sensor_name}")
                 # If sensor does not exist, create and add it
                 sensor = NMEA2000Sensor(
-                    sensor_name, 
-                    field.description, 
-                    field.value, 
-                    "NMEA 2000", 
-                    field.unit_of_measurement, 
-                    nmea2000Message.pgn_description, 
+                    sensor_name,
+                    field.description,
+                    field.value,
+                    "NMEA 2000",
+                    field.unit_of_measurement,
+                    nmea2000Message.pgn_description,
                     nmea2000Message.id,
-                    self.name
+                    self.name,
                 )
-                
+
                 self.async_add_entities([sensor])
                 self.sensors[field.id] = sensor
             else:
                 # If sensor exists, update its state
-                _LOGGER.debug(f"Updating existing sensor {sensor_name} with new value: {field.value}")
+                _LOGGER.debug(
+                    f"Updating existing sensor {sensor_name} with new value: {field.value}"
+                )
                 sensor = self.sensors[field.id]
                 sensor.set_state(field.value)
 

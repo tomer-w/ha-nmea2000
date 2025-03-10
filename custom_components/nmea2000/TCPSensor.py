@@ -1,4 +1,5 @@
 import asyncio
+from .SensorBase import SensorBase
 import binascii
 from datetime import timedelta
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -133,45 +134,16 @@ class TCPSensor(SensorBase):
                 retry_delay = min(retry_delay * 2, max_retry_delay)
 
     def process_packet(self, packet):
-        # Extract the type byte and data length from the type byte
-        type_byte = packet[0]
-        data_length = type_byte & 0x0F  # last 4 bits represent the data length
+        """Process the received packet."""
+        if len(packet) != 13:  # Always 13 bytes in the ECAN family
+            _LOGGER.error(
+                "Invalid packet length: %d. packet: %s",
+                len(packet),
+                binascii.hexlify(packet),
+            )
+            return
 
-        # Extract and reverse the frame ID
-        frame_id = packet[1:5][::-1]
-
-        # Convert frame_id bytes to an integer
-        frame_id_int = int.from_bytes(frame_id, byteorder="big")
-
-        # Extracting Source ID from the frame ID
-        source_id = frame_id_int & 0xFF
-        source_id_hex = "{:02X}".format(source_id)
-
-        # Extracting PGN ID from the frame ID
-        pgn_id = (
-            frame_id_int >> 8
-        ) & 0x3FFFF  # Shift right by 8 bits and mask to 18 bits
-        pgn_id_hex = "{:06X}".format(pgn_id)  # Format PGN as a hex string with 6 digits
-
-        # Extract and reverse the CAN data
-        can_data = packet[5 : 5 + data_length][::-1]
-        can_data_hex = binascii.hexlify(can_data).decode("ascii")
-
-        # Prepare combined string in the format "PGN:Source_ID:CAN_Data"
-        combined_hex = f"{pgn_id_hex}:{source_id_hex}:{can_data_hex}"
-
-        # Log the extracted information including the combined string
-        _LOGGER.debug(
-            "TCP %s PGN ID: %s, Frame ID: %s, CAN Data: %s, Source ID: %s, Combined: %s",
-            self.name,
-            pgn_id_hex,
-            binascii.hexlify(frame_id).decode("ascii"),
-            can_data_hex,
-            source_id_hex,
-            combined_hex,
-        )
-
-        super().process_frame(combined_hex)
+        super().process_frame(packet)
 
     @callback
     def stop(self, event):
