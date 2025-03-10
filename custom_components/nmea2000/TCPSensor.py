@@ -1,8 +1,8 @@
 import asyncio
 import binascii
 from datetime import timedelta
-from homeassistant.components.sensor import SensorEntity
-from homeassistant.core import callback
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant, callback
 
 import logging
 
@@ -10,7 +10,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 # TCPSensor class representing a sensor entity interacting with a TCP device
-class TCPSensor(SensorEntity):
+class TCPSensor(SensorBase):
     """Representation of a TCP sensor."""
 
     _attr_should_poll = False
@@ -18,10 +18,13 @@ class TCPSensor(SensorEntity):
     def __init__(
         self,
         name,
+        hass: HomeAssistant,
+        async_add_entities: AddEntitiesCallback,
         host,
         port,
     ):
         """Initialize the TCP sensor."""
+        super().__init__(name, hass, async_add_entities)
         self._name = name
         self._state = None
         self._host = host
@@ -168,25 +171,10 @@ class TCPSensor(SensorEntity):
             combined_hex,
         )
 
-        set_pgn_entity(self.hass, self.name, combined_hex)
+        super().process_frame(combined_hex)
 
     @callback
     def stop(self, event):
         """Close resources for the TCP connection."""
         if self._connection_loop_task:
             self._connection_loop_task.cancel()
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._name
-
-    @property
-    def extra_state_attributes(self):
-        """Return the attributes of the entity (if any JSON present)."""
-        return self._attributes
-
-    @property
-    def native_value(self):
-        """Return the state of the sensor."""
-        return self._state

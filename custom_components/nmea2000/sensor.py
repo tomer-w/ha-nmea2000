@@ -4,14 +4,12 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
-from nmea2000parser import get_parser
 
 # Third-Party Library Imports
 
 # Home Assistant Imports
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STOP
