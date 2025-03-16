@@ -4,7 +4,7 @@
   "documentation": "https://github.com/tomer-w/ha-nmea2000",
   "dependencies": [],
   "integration_type": "hub",
-  "requirements": ["nmea2000"],
+  "requirements": ["nmea2000 >= 0.1.6"],
   "codeowners": ["tomer-w"],
   "version": "1.0",
   "config_flow": true,
