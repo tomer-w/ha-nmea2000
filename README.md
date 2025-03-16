@@ -10,7 +10,8 @@ A Home Assistant integration that brings marine data to your smart home. Automat
 ## ✨ Features
 
 - **Plug & Play** - Automatic sensor creation from detected messages
-- **Flexible Connectivity** - Support for USB and TCP CAN bus gateways
+- **USB gateways**: CANBUS USB devices like [Waveshare USB-CAN-A](https://www.waveshare.com/wiki/USB-CAN-A)
+- **TCP gateways**: CANBUS TCP devices like [ECAN-W01S](https://www.cdebyte.com/products/ECAN-W01S) or [ECAN-E01](https://www.cdebyte.com/products/ECAN-E01)
 - **Real-time Data** - Instant marine metrics in your Home Assistant dashboard
 - **Low Resource Usage** - Optimized performance with minimal overhead
 - **Marine-focused** - Specially designed for boating enthusiasts
