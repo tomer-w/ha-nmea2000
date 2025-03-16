@@ -1,7 +1,6 @@
 # Standard Library Imports
 import asyncio
 import logging
-from datetime import datetime, timedelta
 from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway
 
 # Third-Party Library Imports
@@ -16,7 +15,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STOP
 
 # Setting up logging and configuring constants and default values
-import logging
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,13 +47,11 @@ async def async_setup_entry(
         f"Configuring sensor with name: {name}, mode: {mode}, PGN Include: {pgn_include}, PGN Exclude: {pgn_exclude}"
     )
 
-        # Initialize unique dictionary keys based on the integration name
+    # Initialize unique dictionary keys based on the integration name
     created_sensors_key = f"{name}_created_sensors"
 
-        # Initialize a dictionary to store references to the created sensors
+    # Initialize a dictionary to store references to the created sensors
     hass.data[created_sensors_key] = {}
-
-
 
     if mode == "USB":
         serial_port = entry.data[CONF_SERIAL_PORT]
@@ -145,7 +141,11 @@ def parse_and_validate_comma_separated_integers(input_str: str):
 
 class Sensor(SensorEntity):
     def __init__(
-        self, name: str, hass: HomeAssistant, async_add_entities: AddEntitiesCallback, gateway
+        self,
+        name: str,
+        hass: HomeAssistant,
+        async_add_entities: AddEntitiesCallback,
+        gateway,
     ) -> None:
         """Initialize the SensorBase."""
         self._name = name
@@ -156,7 +156,6 @@ class Sensor(SensorEntity):
         self.gateway.set_callback(self.process_frame)
 
     async def process_message(self, message: NMEA2000Message) -> None:
-
         for field in message.fields:
             # Construct unique sensor name
             sensor_name = f"{self.name}_{self.id}_{field.id}"
