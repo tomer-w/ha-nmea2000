@@ -1,13 +1,13 @@
 # Standard Library Imports
 import asyncio
-import json
 import logging
-import os
 from datetime import datetime, timedelta
+from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway
 
 # Third-Party Library Imports
 
 # Home Assistant Imports
+from .NMEA2000Sensor import NMEA2000Sensor
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.sensor import SensorEntity
@@ -16,8 +16,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STOP
 
 # Setting up logging and configuring constants and default values
-from .TCPSensor import TCPSensor
-from .SerialSensor import SerialSensor
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -51,31 +49,13 @@ async def async_setup_entry(
         f"Configuring sensor with name: {name}, mode: {mode}, PGN Include: {pgn_include}, PGN Exclude: {pgn_exclude}"
     )
 
-    # Initialize unique dictionary keys based on the integration name
-    add_entities_key = f"{name}_add_entities"
+        # Initialize unique dictionary keys based on the integration name
     created_sensors_key = f"{name}_created_sensors"
-    smart2000usb_data_key = f"{name}_smart2000usb_data"
-    fast_packet_key = f"{name}_fast_packet_key"
-    whitelist_key = f"{name}_whitelist_key"
-    blacklist_key = f"{name}_blacklist_key"
 
-    hass.data[whitelist_key] = pgn_include
-    hass.data[blacklist_key] = pgn_exclude
-
-    smart2000timestamp_key = f"{name}_smart2000timestamp_key"
-    hass.data[smart2000timestamp_key] = {
-        "last_processed": {},
-        "min_interval": timedelta(seconds=5),
-    }
-
-    # Initialize dictionary to hold fast packet frames
-    hass.data[fast_packet_key] = {}
-
-    # Save a reference to the add_entities callback
-    hass.data[add_entities_key] = async_add_entities
-
-    # Initialize a dictionary to store references to the created sensors
+        # Initialize a dictionary to store references to the created sensors
     hass.data[created_sensors_key] = {}
+
+
 
     if mode == "USB":
         serial_port = entry.data[CONF_SERIAL_PORT]
@@ -83,27 +63,16 @@ async def async_setup_entry(
         _LOGGER.info(
             f"USB sensor with name: {name}, serial_port: {serial_port}, baudrate: {baudrate}"
         )
-        sensor = SerialSensor(
-            name,
-            hass,
-            async_add_entities,
-            serial_port,
-            baudrate,
-        )
+        gateway = UsbNmea2000Gateway(serial_port)
     elif mode == "TCP":
         ip = entry.data[CONF_IP]
         port = entry.data[CONF_PORT]
         _LOGGER.info(f"TCP sensor with name: {name}, IP: {ip}, port: {port}")
-        sensor = TCPSensor(
-            name,
-            hass,
-            async_add_entities,
-            ip,
-            port,
-        )
+        gateway = TcpNmea2000Gateway(ip, port)
     else:
         _LOGGER.error(f"mode {mode} not supported")
         return
+    sensor = Sensor(name, hass, async_add_entities, gateway)
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, sensor.stop)
     async_add_entities([sensor], True)
@@ -119,18 +88,11 @@ async def async_setup_entry(
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Retrieve configuration from entry
     name = entry.data["name"]
-
     _LOGGER.debug(f"Unload integration with name: {name}")
 
     # Clean up hass.data entries
     for key_suffix in [
-        "add_entities",
         "created_sensors",
-        "smart2000usb_data",
-        "fast_packet",
-        "whitelist",
-        "blacklist",
-        "smart2000timestamp",
     ]:
         key = f"{name}_{key_suffix}"
         if key in hass.data:
@@ -139,6 +101,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug(f"Unload and cleanup for {name} completed successfully.")
 
+    return True
     return True
 
 
@@ -178,3 +141,61 @@ def parse_and_validate_comma_separated_integers(input_str: str):
                 )
 
     return validated_integers
+
+
+class Sensor(SensorEntity):
+    def __init__(
+        self, name: str, hass: HomeAssistant, async_add_entities: AddEntitiesCallback, gateway
+    ) -> None:
+        """Initialize the SensorBase."""
+        self._name = name
+        self.hass = hass
+        self.async_add_entities = async_add_entities
+        self.gateway = gateway
+        self.sensors = {}
+        self.gateway.set_callback(self.process_frame)
+
+    async def process_message(self, message: NMEA2000Message) -> None:
+
+        for field in message.fields:
+            # Construct unique sensor name
+            sensor_name = f"{self.name}_{self.id}_{field.id}"
+            # Check for sensor existence and create/update accordingly
+            if sensor_name not in self.sensors[field.id]:
+                _LOGGER.debug(f"Creating new sensor for {sensor_name}")
+                # If sensor does not exist, create and add it
+                sensor = NMEA2000Sensor(
+                    sensor_name,
+                    field.description,
+                    field.value,
+                    "NMEA 2000",
+                    field.unit_of_measurement,
+                    message.pgn_description,
+                    message.id,
+                    self.name,
+                )
+
+                self.async_add_entities([sensor])
+                self.sensors[field.id] = sensor
+            else:
+                # If sensor exists, update its state
+                _LOGGER.debug(
+                    f"Updating existing sensor {sensor_name} with new value: {field.value}"
+                )
+                sensor = self.sensors[field.id]
+                sensor.set_state(field.value)
+
+    @property
+    def name(self):
+        """Return the name of the sensor."""
+        return self._name
+
+    @property
+    def extra_state_attributes(self):
+        """Return the attributes of the entity (if any JSON present)."""
+        return self._attributes
+
+    @property
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self._state
