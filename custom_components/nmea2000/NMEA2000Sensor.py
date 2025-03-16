@@ -1,22 +1,24 @@
-import datetime
+from datetime import datetime
 from homeassistant.helpers.entity import Entity
-from homeassistant.components.sensor import  SensorStateClass
+from homeassistant.components.sensor import SensorStateClass
 
 import logging
+
 _LOGGER = logging.getLogger(__name__)
+
 
 # SmartSensor class representing a basic sensor entity with state
 class NMEA2000Sensor(Entity):
     def __init__(
-        self, 
-        name, 
-        friendly_name, 
-        initial_state, 
-        group=None, 
-        unit_of_measurement=None, 
-        device_name=None, 
+        self,
+        name,
+        friendly_name,
+        initial_state,
+        group=None,
+        unit_of_measurement=None,
+        device_name=None,
         sentence_type=None,
-        instance_name=None
+        instance_name=None,
     ):
         """Initialize the sensor."""
         _LOGGER.debug(f"Initializing sensor: {name} with state: {initial_state}")
@@ -42,6 +44,7 @@ class NMEA2000Sensor(Entity):
     def name(self):
         """Return the name of the sensor."""
         return self._name
+
     @property
     def unique_id(self):
         """Return a unique ID."""
@@ -61,7 +64,9 @@ class NMEA2000Sensor(Entity):
     def device_info(self):
         """Return device information about this sensor."""
         return {
-            "identifiers": {("smart2000usb", f"{self._instance_name}_{self._device_name}")},
+            "identifiers": {
+                ("smart2000usb", f"{self._instance_name}_{self._device_name}")
+            },
             "name": self._device_name,
             "manufacturer": self._group,
             "model": self._sentence_type,
@@ -90,7 +95,9 @@ class NMEA2000Sensor(Entity):
     def update_availability(self):
         """Update the availability status of the sensor."""
 
-        new_availability = (datetime.now() - self._last_updated) < datetime.timedelta(minutes=4)
+        new_availability = (datetime.now() - self._last_updated) < datetime.timedelta(
+            minutes=4
+        )
 
         self._available = new_availability
 
@@ -100,13 +107,15 @@ class NMEA2000Sensor(Entity):
             if "Attribute hass is None" in str(re):
                 pass  # Ignore this specific error
             else:
-                _LOGGER.warning(f"Could not update state for sensor '{self._name}': {re}")
+                _LOGGER.warning(
+                    f"Could not update state for sensor '{self._name}': {re}"
+                )
         except Exception as e:  # Catch all other exception types
             _LOGGER.warning(f"Could not update state for sensor '{self._name}': {e}")
 
     def set_state(self, new_state):
         """Set the state of the sensor."""
-        
+
         if new_state is not None and new_state != "":
             # Since the state is valid, update the sensor's state and the last updated timestamp
             self._state = new_state
@@ -115,13 +124,19 @@ class NMEA2000Sensor(Entity):
             _LOGGER.debug(f"Setting state for sensor: '{self._name}' to {new_state}")
         else:
             # For None or empty string, check the time since last valid update
-            if self._last_updated and (datetime.now() - self._last_updated > datetime.timedelta(minutes=1)):
+            if self._last_updated and (
+                datetime.now() - self._last_updated > datetime.timedelta(minutes=1)
+            ):
                 # It's been more than 1 minute since the last valid update
                 self._available = False
-                _LOGGER.debug(f"Setting sensor:'{self._name}' as unavailable due to no valid update for over 1 minute")
+                _LOGGER.debug(
+                    f"Setting sensor:'{self._name}' as unavailable due to no valid update for over 1 minute"
+                )
             else:
                 # It's been less than 1 minute since the last valid update, keep the sensor available
-                _LOGGER.debug(f"Sensor:'{self._name}' remains available as it's less than 1 minute since last valid state")
+                _LOGGER.debug(
+                    f"Sensor:'{self._name}' remains available as it's less than 1 minute since last valid state"
+                )
 
         try:
             self.async_schedule_update_ha_state()
@@ -129,10 +144,8 @@ class NMEA2000Sensor(Entity):
             if "Attribute hass is None" in str(re):
                 pass  # Ignore this specific error
             else:
-                _LOGGER.warning(f"Could not update state for sensor '{self._name}': {re}")
+                _LOGGER.warning(
+                    f"Could not update state for sensor '{self._name}': {re}"
+                )
         except Exception as e:  # Catch all other exception types
             _LOGGER.warning(f"Could not update state for sensor '{self._name}': {e}")
-
-
-
-

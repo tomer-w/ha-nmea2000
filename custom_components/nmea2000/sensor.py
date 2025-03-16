@@ -7,7 +7,7 @@ from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway
 
 # Home Assistant Imports
 from .NMEA2000Sensor import NMEA2000Sensor
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -69,6 +69,7 @@ async def async_setup_entry(
         _LOGGER.error(f"mode {mode} not supported")
         return
     sensor = Sensor(name, hass, async_add_entities, gateway)
+    await sensor.connect()
 
     hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, sensor.stop)
     async_add_entities([sensor], True)
@@ -76,7 +77,7 @@ async def async_setup_entry(
     # Start the task that updates the sensor availability every 5 minutes
     hass.loop.create_task(update_sensor_availability(hass, name))
 
-    _LOGGER.debug(f"Smart2000usb {name} setup completed.")
+    _LOGGER.debug(f"nmea2000 {name} setup completed.")
 
     return True
 
@@ -153,14 +154,20 @@ class Sensor(SensorEntity):
         self.async_add_entities = async_add_entities
         self.gateway = gateway
         self.sensors = {}
-        self.gateway.set_callback(self.process_frame)
+        self.gateway.set_receive_callback(self.process_message)
+
+    async def connect(self) -> None:
+        await self.gateway.connect()
 
     async def process_message(self, message: NMEA2000Message) -> None:
+        """Process a received NMEA 2000 message."""
+        _LOGGER.debug(f"Processing message: {message}")
         for field in message.fields:
             # Construct unique sensor name
-            sensor_name = f"{self.name}_{self.id}_{field.id}"
+            sensor_name = f"{self.name}_{message.id}_{field.id}"
             # Check for sensor existence and create/update accordingly
-            if sensor_name not in self.sensors[field.id]:
+            sensor = self.sensors.get(field.id)
+            if sensor is None:
                 _LOGGER.debug(f"Creating new sensor for {sensor_name}")
                 # If sensor does not exist, create and add it
                 sensor = NMEA2000Sensor(
@@ -169,7 +176,7 @@ class Sensor(SensorEntity):
                     field.value,
                     "NMEA 2000",
                     field.unit_of_measurement,
-                    message.pgn_description,
+                    message.description,
                     message.id,
                     self.name,
                 )
@@ -181,7 +188,6 @@ class Sensor(SensorEntity):
                 _LOGGER.debug(
                     f"Updating existing sensor {sensor_name} with new value: {field.value}"
                 )
-                sensor = self.sensors[field.id]
                 sensor.set_state(field.value)
 
     @property
@@ -192,9 +198,14 @@ class Sensor(SensorEntity):
     @property
     def extra_state_attributes(self):
         """Return the attributes of the entity (if any JSON present)."""
-        return self._attributes
+        return None
 
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return self._state
+        return "Running"  # todo: check if gateway is running
+
+    @callback
+    def stop(self, event):
+        """Close resources for the TCP connection."""
+        self.gateway.close()
