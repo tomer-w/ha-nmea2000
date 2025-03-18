@@ -1,37 +1,44 @@
 {
+  "title": "NMEA 2000 Gateway",
   "config": {
     "error": {
-      "name_exists": "This device name is already in use, please choose a different one.",
-      "cannot_connect": "Failed to connect to the server. Please check the Baud Rate and port."
+      "name_exists": "This device name is already in use, please choose a different one."
     },
     "step": {
       "user": {
-        "title": "Connect to Smart 2000 USB Sensor",
-        "description": "Enter the device name, Port, Baudrate and specify which PGNs to include or exclude. For best performance only use the PGNs that you wish to use. You can always update this later.",
+        "description": "Choose the gateway device name in Home Assistant.",
         "data": {
-          "name": "USB Device Name",
-          "serial_port": "Serial Port Name",
-          "baudrate": "Baud Rate",
-          "pgn_include": "PGNs to Include (comma-separated list)",
-          "pgn_exclude": "PGNs to Exclude (comma-separated list)"
+          "name": "Gateway Name",
+          "mode": "Gateway type:"
         }
+      },
+      "options": {
+        "description": "Choose the gateway connection parameters and specify which PGNs to include or exclude. For best performance only use the PGNs that you wish to use. You can always update this later.",
+        "data": {
+          "serial_port": "Serial port name",
+          "baudrate": "Baud rate",
+          "ip": "Gateway IP address",
+          "port": "Gateway port number",
+          "pgn_include": "PGNs to include (comma-separated list)",
+          "pgn_exclude": "PGNs to exclude (comma-separated list)"
+        }
+      },
+      "success": {
+        "description": "Device created Successfully."
       }
-    },
-    "success": {
-      "title": "Connection Successful",
-      "description": "You have successfully connected to Smart 2000 USB Sensor."
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Configure Smart 2000 USB Sensor",
-        "description": "Specify the Port, Baudrate and which PGNs to include or exclude. For best performance only use the PGNs that you wish to use.",
+        "description": "Choose the gateway connection parameters and specify which PGNs to include or exclude. For best performance only use the PGNs that you wish to use. You can always update this later.",
         "data": {
-          "serial_port": "Serial Port Name",
-          "baudrate": "Baud Rate",
-          "pgn_include": "PGNs to Include (comma-separated list)",
-          "pgn_exclude": "PGNs to Exclude (comma-separated list)"
+          "serial_port": "Serial port name",
+          "baudrate": "Baud rate",
+          "ip": "Gateway IP address",
+          "port": "Gateway port number",
+          "pgn_include": "PGNs to include (comma-separated list)",
+          "pgn_exclude": "PGNs to exclude (comma-separated list)"
         }
       }
     }

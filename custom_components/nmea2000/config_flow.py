@@ -66,6 +66,7 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_step_options(self, user_input=None):
+        """Handle the options step of the config flow."""
         _LOGGER.debug(
             "async_step_options called with user_input: %s, data: %s",
             user_input,
