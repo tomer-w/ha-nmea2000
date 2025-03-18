@@ -5,8 +5,8 @@
   "issue_tracker": "https://github.com/tomer-w/ha-nmea2000/issues",
   "dependencies": [],
   "integration_type": "hub",
-  "requirements": ["nmea2000 >= 0.1.8"],
-  "codeowners": ["tomer-w"],
+  "requirements": ["nmea2000>=0.1.8"],
+  "codeowners": ["@tomer-w"],
   "version": "2025.3.0",
   "config_flow": true,
   "iot_class": "local_push"
