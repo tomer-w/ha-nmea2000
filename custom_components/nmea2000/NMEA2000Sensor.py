@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from homeassistant.helpers.entity import Entity
 from homeassistant.components.sensor import SensorStateClass
 
@@ -9,6 +9,8 @@ _LOGGER = logging.getLogger(__name__)
 
 # SmartSensor class representing a basic sensor entity with state
 class NMEA2000Sensor(Entity):
+    """Representation of a NMEA2000 sensor."""
+
     def __init__(
         self,
         name,
@@ -19,9 +21,9 @@ class NMEA2000Sensor(Entity):
         device_name=None,
         sentence_type=None,
         instance_name=None,
-    ):
+    ) -> None:
         """Initialize the sensor."""
-        _LOGGER.debug(f"Initializing sensor: {name} with state: {initial_state}")
+        _LOGGER.debug("Initializing sensor: %s with state: %s", name, initial_state)
 
         self._unique_id = name.lower().replace(" ", "_")
         self.entity_id = f"sensor.{self._unique_id}"
@@ -36,7 +38,7 @@ class NMEA2000Sensor(Entity):
         self._last_updated = datetime.now()
         if initial_state is None or initial_state == "":
             self._available = False
-            _LOGGER.debug(f"Setting sensor: '{self._name}' with unavailable")
+            _LOGGER.debug("Setting sensor: '%s' with unavailable", self._name)
         else:
             self._available = True
 
@@ -100,52 +102,30 @@ class NMEA2000Sensor(Entity):
         )
 
         self._available = new_availability
-
-        try:
-            self.async_schedule_update_ha_state()
-        except RuntimeError as re:
-            if "Attribute hass is None" in str(re):
-                pass  # Ignore this specific error
-            else:
-                _LOGGER.warning(
-                    f"Could not update state for sensor '{self._name}': {re}"
-                )
-        except Exception as e:  # Catch all other exception types
-            _LOGGER.warning(f"Could not update state for sensor '{self._name}': {e}")
+        self.async_schedule_update_ha_state()
 
     def set_state(self, new_state):
         """Set the state of the sensor."""
+        should_update = False
+        self._last_updated = datetime.now()
 
-        if new_state is not None and new_state != "":
+        if new_state not in {None, "", self._state}:
             # Since the state is valid, update the sensor's state and the last updated timestamp
             self._state = new_state
             self._available = True
-            self._last_updated = datetime.now()
-            _LOGGER.debug(f"Setting state for sensor: '{self._name}' to {new_state}")
-        else:
-            # For None or empty string, check the time since last valid update
-            if self._last_updated and (
-                datetime.now() - self._last_updated > datetime.timedelta(minutes=1)
-            ):
-                # It's been more than 1 minute since the last valid update
-                self._available = False
-                _LOGGER.debug(
-                    f"Setting sensor:'{self._name}' as unavailable due to no valid update for over 1 minute"
-                )
-            else:
-                # It's been less than 1 minute since the last valid update, keep the sensor available
-                _LOGGER.debug(
-                    f"Sensor:'{self._name}' remains available as it's less than 1 minute since last valid state"
-                )
+            _LOGGER.debug("Setting state for sensor: '%s' to %s", self._name, new_state)
+            should_update = True
 
-        try:
+        if self._last_updated and (
+            datetime.now() - self._last_updated > timedelta(minutes=1)
+        ):
+            # It's been more than 1 minute since the last valid update
+            self._available = False
+            _LOGGER.debug(
+                "Setting sensor:'%s' as unavailable due to no valid update for over 1 minute",
+                self._name,
+            )
+            should_update = True
+
+        if should_update:
             self.async_schedule_update_ha_state()
-        except RuntimeError as re:
-            if "Attribute hass is None" in str(re):
-                pass  # Ignore this specific error
-            else:
-                _LOGGER.warning(
-                    f"Could not update state for sensor '{self._name}': {re}"
-                )
-        except Exception as e:  # Catch all other exception types
-            _LOGGER.warning(f"Could not update state for sensor '{self._name}': {e}")

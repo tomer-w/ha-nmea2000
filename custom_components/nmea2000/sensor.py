@@ -1,7 +1,7 @@
 # Standard Library Imports
 import asyncio
 import logging
-from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway
+from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway, FieldTypes
 
 # Third-Party Library Imports
 
@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.exceptions import ConfigValidationError
 
 from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STOP
 
@@ -32,6 +33,7 @@ CONF_PORT = "port"
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
+    """Set up the NMEA2000 sensor platform from a config entry."""
     # Retrieve configuration from entry
     name = entry.data[CONF_NAME]
     mode = entry.data[CONF_MODE]
@@ -44,7 +46,11 @@ async def async_setup_entry(
     )
 
     _LOGGER.info(
-        f"Configuring sensor with name: {name}, mode: {mode}, PGN Include: {pgn_include}, PGN Exclude: {pgn_exclude}"
+        "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s",
+        name,
+        mode,
+        pgn_include,
+        pgn_exclude,
     )
 
     # Initialize unique dictionary keys based on the integration name
@@ -57,17 +63,20 @@ async def async_setup_entry(
         serial_port = entry.data[CONF_SERIAL_PORT]
         baudrate = entry.data[CONF_BAUDRATE]
         _LOGGER.info(
-            f"USB sensor with name: {name}, serial_port: {serial_port}, baudrate: {baudrate}"
+            "USB sensor with name: %s, serial_port: %s, baudrate: %s",
+            name,
+            serial_port,
+            baudrate,
         )
         gateway = UsbNmea2000Gateway(serial_port)
     elif mode == "TCP":
         ip = entry.data[CONF_IP]
         port = entry.data[CONF_PORT]
-        _LOGGER.info(f"TCP sensor with name: {name}, IP: {ip}, port: {port}")
+        _LOGGER.info("TCP sensor with name: %s, IP: %s, port: %s", name, ip, port)
         gateway = TcpNmea2000Gateway(ip, port)
     else:
-        _LOGGER.error(f"mode {mode} not supported")
-        return
+        raise ConfigValidationError(f"mode {mode} not supported")
+
     sensor = Sensor(name, hass, async_add_entities, gateway)
     await sensor.connect()
 
@@ -77,15 +86,16 @@ async def async_setup_entry(
     # Start the task that updates the sensor availability every 5 minutes
     hass.loop.create_task(update_sensor_availability(hass, name))
 
-    _LOGGER.debug(f"nmea2000 {name} setup completed.")
+    _LOGGER.debug("nmea2000 %s setup completed", name)
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Unload a config entry."""
     # Retrieve configuration from entry
     name = entry.data["name"]
-    _LOGGER.debug(f"Unload integration with name: {name}")
+    _LOGGER.debug("Unload integration with name: %s", name)
 
     # Clean up hass.data entries
     for key_suffix in [
@@ -93,16 +103,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     ]:
         key = f"{name}_{key_suffix}"
         if key in hass.data:
-            _LOGGER.debug(f"Removing {key} from hass.data.")
+            _LOGGER.debug("Removing %s from hass.data", key)
             del hass.data[key]
 
-    _LOGGER.debug(f"Unload and cleanup for {name} completed successfully.")
-
-    return True
+    _LOGGER.debug("Unload and cleanup for %s completed successfully", name)
     return True
 
 
-async def update_sensor_availability(hass, instance_name):
+async def update_sensor_availability(hass: HomeAssistant, instance_name: str) -> None:
     """Update the availability of all sensors every 5 minutes."""
 
     created_sensors_key = f"{instance_name}_created_sensors"
@@ -115,7 +123,8 @@ async def update_sensor_availability(hass, instance_name):
             sensor.update_availability()
 
 
-def parse_and_validate_comma_separated_integers(input_str: str):
+def parse_and_validate_comma_separated_integers(input_str: str) -> list[int]:
+    """Parse and validate a comma-separated string of integers."""
     # Check if the input string is empty or contains only whitespace
     if not input_str.strip():
         return []
@@ -134,13 +143,15 @@ def parse_and_validate_comma_separated_integers(input_str: str):
             except ValueError:
                 # Raise an error indicating the specific value that couldn't be converted
                 _LOGGER.error(
-                    f"Invalid pgn value found: '{value}' in input '{input_str}'."
+                    "Invalid pgn value found: '%s' in input '%s'", value, input_str
                 )
 
     return validated_integers
 
 
 class Sensor(SensorEntity):
+    """Representation of a NMEA2000 sensor."""
+
     def __init__(
         self,
         name: str,
@@ -157,23 +168,32 @@ class Sensor(SensorEntity):
         self.gateway.set_receive_callback(self.process_message)
 
     async def connect(self) -> None:
+        """Connect to the NMEA2000 gateway."""
         await self.gateway.connect()
 
     async def process_message(self, message: NMEA2000Message) -> None:
         """Process a received NMEA 2000 message."""
-        _LOGGER.debug(f"Processing message: {message}")
+        _LOGGER.debug("Processing message: %s", message)
         for field in message.fields:
+            # Skip fields with name containing "instance" or type equals "reserved"
+            if "instance" in field.name or field.type == FieldTypes.RESERVED:
+                _LOGGER.debug(
+                    "Skipping field with name: %s and type: %s", field.name, field.type
+                )
+                continue
+
             # Construct unique sensor name
             sensor_name = f"{self.name}_{message.id}_{field.id}"
             # Check for sensor existence and create/update accordingly
             sensor = self.sensors.get(field.id)
+            value = field.value if field.value is not None else field.raw_value
             if sensor is None:
-                _LOGGER.debug(f"Creating new sensor for {sensor_name}")
+                _LOGGER.debug("Creating new sensor for %s", sensor_name)
                 # If sensor does not exist, create and add it
                 sensor = NMEA2000Sensor(
                     sensor_name,
-                    field.description,
-                    field.value,
+                    field.name,
+                    value,
                     "NMEA 2000",
                     field.unit_of_measurement,
                     message.description,
@@ -186,9 +206,11 @@ class Sensor(SensorEntity):
             else:
                 # If sensor exists, update its state
                 _LOGGER.debug(
-                    f"Updating existing sensor {sensor_name} with new value: {field.value}"
+                    "Updating existing sensor %s with new value: %s",
+                    sensor.name,
+                    value,
                 )
-                sensor.set_state(field.value)
+                sensor.set_state(value)
 
     @property
     def name(self):
