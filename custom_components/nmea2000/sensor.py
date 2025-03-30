@@ -1,6 +1,7 @@
 # Standard Library Imports
 import asyncio
 import logging
+import hashlib
 from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway, FieldTypes
 
 # Third-Party Library Imports
@@ -174,21 +175,31 @@ class Sensor(SensorEntity):
     async def process_message(self, message: NMEA2000Message) -> None:
         """Process a received NMEA 2000 message."""
         _LOGGER.debug("Processing message: %s", message)
+
+        # BUild primary key for the sensor
+        primary_key_prefix = ""
         for field in message.fields:
-            # Skip fields with name containing "instance" or type equals "reserved"
-            if "instance" in field.name or field.type == FieldTypes.RESERVED:
+            if field.part_of_primary_key:
+                primary_key_prefix += "_" + str(field.value)
+        #Using MD% as we dont need secure hashing and speed matters.
+        primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
+        sensor_name_prefix = f"{self.name}_{message.id}_{primary_key_prefix_hash}_"
+
+        for field in message.fields:
+            # Skip undefined fields
+            if field.type in [FieldTypes.RESERVED, FieldTypes.SPARE, FieldTypes.BINARY, FieldTypes.VARIABLE, FieldTypes.FIELD_INDEX]:
                 _LOGGER.debug(
                     "Skipping field with name: %s and type: %s", field.name, field.type
                 )
                 continue
 
             # Construct unique sensor name
-            sensor_name = f"{self.name}_{message.id}_{field.id}"
+            sensor_name = sensor_name_prefix + field.id
             # Check for sensor existence and create/update accordingly
             sensor = self.sensors.get(field.id)
             value = field.value if field.value is not None else field.raw_value
             if sensor is None:
-                _LOGGER.debug("Creating new sensor for %s", sensor_name)
+                _LOGGER.info("Creating new sensor for %s", sensor_name)
                 # If sensor does not exist, create and add it
                 sensor = NMEA2000Sensor(
                     sensor_name,

@@ -23,7 +23,7 @@ class NMEA2000Sensor(Entity):
         instance_name=None,
     ) -> None:
         """Initialize the sensor."""
-        _LOGGER.debug("Initializing sensor: %s with state: %s", name, initial_state)
+        _LOGGER.info("Initializing sensor: %s with state: %s", name, initial_state)
 
         self._unique_id = name.lower().replace(" ", "_")
         self.entity_id = f"sensor.{self._unique_id}"
@@ -38,7 +38,7 @@ class NMEA2000Sensor(Entity):
         self._last_updated = datetime.now()
         if initial_state is None or initial_state == "":
             self._available = False
-            _LOGGER.debug("Setting sensor: '%s' with unavailable", self._name)
+            _LOGGER.info("Creating sensor: '%s' as unavailable", self._name)
         else:
             self._available = True
 
@@ -101,31 +101,26 @@ class NMEA2000Sensor(Entity):
             minutes=4
         )
 
-        self._available = new_availability
-        self.async_schedule_update_ha_state()
+        if self._available != new_availability:
+            _LOGGER.warning("Setting sensor:'%s' as unavailable", self._name)
+            self._available = new_availability
+            self.async_schedule_update_ha_state()
 
     def set_state(self, new_state):
         """Set the state of the sensor."""
         should_update = False
         self._last_updated = datetime.now()
 
-        if new_state not in {None, "", self._state}:
-            # Since the state is valid, update the sensor's state and the last updated timestamp
+        if new_state not in [None, "", self._state]:
+            # Since the state is valid, update the sensor's state
             self._state = new_state
-            self._available = True
-            _LOGGER.debug("Setting state for sensor: '%s' to %s", self._name, new_state)
+            _LOGGER.info("Setting state for sensor: '%s' to %s", self._name, new_state)
             should_update = True
 
-        if self._last_updated and (
-            datetime.now() - self._last_updated > timedelta(minutes=1)
-        ):
-            # It's been more than 1 minute since the last valid update
-            self._available = False
-            _LOGGER.debug(
-                "Setting sensor:'%s' as unavailable due to no valid update for over 1 minute",
-                self._name,
-            )
+        if not self._available:
+            self._available = True
             should_update = True
+            _LOGGER.info("Setting sensor:'%s' as available", self._name)
 
         if should_update:
             self.async_schedule_update_ha_state()
