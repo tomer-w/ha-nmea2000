@@ -109,7 +109,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             _LOGGER.debug("Received user_input: %s", user_input)
 
-            new_data = self.data | user_input
+            new_data = current_data | user_input
             _LOGGER.debug("New data after processing user_input: %s", new_data)
 
             # Update the config entry with new data.

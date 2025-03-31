@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import hashlib
+import contextlib
 from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway, FieldTypes
 
 # Third-Party Library Imports
@@ -54,12 +55,6 @@ async def async_setup_entry(
         pgn_exclude,
     )
 
-    # Initialize unique dictionary keys based on the integration name
-    created_sensors_key = f"{name}_created_sensors"
-
-    # Initialize a dictionary to store references to the created sensors
-    hass.data[created_sensors_key] = {}
-
     if mode == "USB":
         serial_port = entry.data[CONF_SERIAL_PORT]
         baudrate = entry.data[CONF_BAUDRATE]
@@ -81,47 +76,11 @@ async def async_setup_entry(
     sensor = Sensor(name, hass, async_add_entities, gateway)
     await sensor.connect()
 
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, sensor.stop)
+    entry.runtime_data = sensor
     async_add_entities([sensor], True)
 
-    # Start the task that updates the sensor availability every 5 minutes
-    hass.loop.create_task(update_sensor_availability(hass, name))
-
     _LOGGER.debug("nmea2000 %s setup completed", name)
-
     return True
-
-
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Unload a config entry."""
-    # Retrieve configuration from entry
-    name = entry.data["name"]
-    _LOGGER.debug("Unload integration with name: %s", name)
-
-    # Clean up hass.data entries
-    for key_suffix in [
-        "created_sensors",
-    ]:
-        key = f"{name}_{key_suffix}"
-        if key in hass.data:
-            _LOGGER.debug("Removing %s from hass.data", key)
-            del hass.data[key]
-
-    _LOGGER.debug("Unload and cleanup for %s completed successfully", name)
-    return True
-
-
-async def update_sensor_availability(hass: HomeAssistant, instance_name: str) -> None:
-    """Update the availability of all sensors every 5 minutes."""
-
-    created_sensors_key = f"{instance_name}_created_sensors"
-
-    while True:
-        _LOGGER.debug("Running update_sensor_availability")
-        await asyncio.sleep(300)  # wait for 5 minutes
-
-        for sensor in hass.data[created_sensors_key].values():
-            sensor.update_availability()
 
 
 def parse_and_validate_comma_separated_integers(input_str: str) -> list[int]:
@@ -150,6 +109,13 @@ def parse_and_validate_comma_separated_integers(input_str: str) -> list[int]:
     return validated_integers
 
 
+async def event_wait(evt, timeout):
+    # suppress TimeoutError because we'll return False in case of timeout
+    with contextlib.suppress(asyncio.TimeoutError):
+        await asyncio.wait_for(evt.wait(), timeout)
+    return evt.is_set()
+
+
 class Sensor(SensorEntity):
     """Representation of a NMEA2000 sensor."""
 
@@ -167,10 +133,26 @@ class Sensor(SensorEntity):
         self.gateway = gateway
         self.sensors = {}
         self.gateway.set_receive_callback(self.process_message)
+        self.stop_event = asyncio.Event()
 
     async def connect(self) -> None:
         """Connect to the NMEA2000 gateway."""
         await self.gateway.connect()
+        
+        self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self.stop)
+        # Start the task that updates the sensor availability every 5 minutes
+        self.hass.loop.create_task(self.update_sensor_availability())
+
+
+    async def update_sensor_availability(self) -> None:
+        """Update the availability of all sensors every 5 minutes."""
+        
+        while not await event_wait(self.stop_event, 300):
+            _LOGGER.debug("Running update_sensor_availability for %s", self.name)
+            for sensor in self.sensors.values():
+                sensor.update_availability()
+
+        _LOGGER.debug("Stopping update_sensor_availability for %s", self.name)
 
     async def process_message(self, message: NMEA2000Message) -> None:
         """Process a received NMEA 2000 message."""
@@ -241,4 +223,6 @@ class Sensor(SensorEntity):
     @callback
     def stop(self, event):
         """Close resources for the TCP connection."""
+        _LOGGER.debug("Sensor %s closed", self.name)
+        self.stop_event.set()
         self.gateway.close()

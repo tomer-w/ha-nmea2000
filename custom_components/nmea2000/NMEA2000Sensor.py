@@ -97,9 +97,7 @@ class NMEA2000Sensor(Entity):
     def update_availability(self):
         """Update the availability status of the sensor."""
 
-        new_availability = (datetime.now() - self._last_updated) < datetime.timedelta(
-            minutes=4
-        )
+        new_availability = (datetime.now() - self._last_updated) < timedelta(minutes=4)
 
         if self._available != new_availability:
             _LOGGER.warning("Setting sensor:'%s' as unavailable", self._name)

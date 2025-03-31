@@ -18,30 +18,23 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
 
 
 async def async_setup(hass: HomeAssistant, config: dict):
-    _LOGGER.debug("Setting up NMEA2000 integration")
+    version = getattr(hass.data["integrations"][DOMAIN], "version", 0)
+    _LOGGER.debug("Setting up NMEA2000 integration. Version: %s", version)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Setting up NMEA2000 integration entry: %s", entry.as_dict())
-    hass.data.setdefault(DOMAIN, {})
-
     # Register the update listener
     entry.async_on_unload(entry.add_update_listener(update_listener))
-
-    hass.data[DOMAIN][entry.entry_id] = entry.data
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    _LOGGER.debug(
-        "NMEA2000 entry setup completed successfully and update listener registered"
-    )
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Unloading NMEA2000 integration entry: %s", entry.as_dict())
-    hass.data[DOMAIN].pop(entry.entry_id)
-    await hass.config_entries.async_forward_entry_unload(entry, "sensor")
-    _LOGGER.debug("NMEA2000 entry unloaded successfully")
+    await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    sensor = entry.runtime_data
+    if sensor is not None:
+        sensor.stop(None)
     return True
