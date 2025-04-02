@@ -5,7 +5,7 @@
 
 > Transform your boat's NMEA 2000 network into powerful Home Assistant sensors instantly!
 
-A Home Assistant integration that brings marine data to your smart home. Automatically detect and convert NMEA 2000 messages into Home Assistant sensors with zero configuration. Works with both USB and TCP CAN bus gateways.
+A Home Assistant integration that brings marine data to your smart home. Automatically detect and convert NMEA 2000 messages into Home Assistant sensors with zero configuration. Works with both USB and TCP CAN bus gateways. Based on pure Python NMEA 2000 [package](https://pypi.org/project/nmea2000/) built over [canboat](https://github.com/canboat/canboat) database.
 
 ## ✨ Features
 
