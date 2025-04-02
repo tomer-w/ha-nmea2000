@@ -3,12 +3,14 @@ import asyncio
 import logging
 import hashlib
 import contextlib
-from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway, FieldTypes
+from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway, AsyncIOClient, FieldTypes, State
 
 # Third-Party Library Imports
 
 # Home Assistant Imports
+from .const import DOMAIN
 from .NMEA2000Sensor import NMEA2000Sensor
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.components.sensor import SensorEntity
@@ -64,22 +66,23 @@ async def async_setup_entry(
             serial_port,
             baudrate,
         )
-        gateway = UsbNmea2000Gateway(serial_port)
+        gateway = UsbNmea2000Gateway(serial_port, exclude_pgns=pgn_exclude, include_pgns=pgn_include)
+        url = f"usb://{serial_port}"
     elif mode == "TCP":
         ip = entry.data[CONF_IP]
         port = entry.data[CONF_PORT]
         _LOGGER.info("TCP sensor with name: %s, IP: %s, port: %s", name, ip, port)
-        gateway = TcpNmea2000Gateway(ip, port)
+        gateway = TcpNmea2000Gateway(ip, port, exclude_pgns=pgn_exclude, include_pgns=pgn_include)
+        url = f"tcp://{ip}:{port}"
     else:
         raise ConfigValidationError(f"mode {mode} not supported")
 
-    sensor = Sensor(name, hass, async_add_entities, gateway)
+    sensor = Sensor(mode, url, name, async_add_entities, gateway)
+    entry.runtime_data = sensor
+    async_add_entities([sensor])
     await sensor.connect()
 
-    entry.runtime_data = sensor
-    async_add_entities([sensor], True)
-
-    _LOGGER.debug("nmea2000 %s setup completed", name)
+    _LOGGER.debug("NMEA2000 %s setup completed", name)
     return True
 
 
@@ -121,19 +124,29 @@ class Sensor(SensorEntity):
 
     def __init__(
         self,
+        mode: str,
+        url: str,
         name: str,
-        hass: HomeAssistant,
         async_add_entities: AddEntitiesCallback,
-        gateway,
+        gateway: AsyncIOClient,
     ) -> None:
         """Initialize the SensorBase."""
-        self._name = name
-        self.hass = hass
+        self._attr_name = "Status"
+        self._attr_unique_id = name.lower().replace(" ", "_")
+        self.entity_id = f"sensor.{self._attr_unique_id}"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN)},
+            manufacturer="NMEA 2000",
+            model=f"NMEA 2000 {mode} Gateway",
+            name=name,
+            via_device=(DOMAIN, url))
         self.async_add_entities = async_add_entities
         self.gateway = gateway
         self.sensors = {}
-        self.gateway.set_receive_callback(self.process_message)
+        self.gateway.set_receive_callback(self.receive_callback)
+        self.gateway.set_status_callback(self.status_callback)
         self.stop_event = asyncio.Event()
+        self._attr_native_value = "Initializing"
 
     async def connect(self) -> None:
         """Connect to the NMEA2000 gateway."""
@@ -148,13 +161,23 @@ class Sensor(SensorEntity):
         """Update the availability of all sensors every 5 minutes."""
         
         while not await event_wait(self.stop_event, 300):
-            _LOGGER.debug("Running update_sensor_availability for %s", self.name)
+            _LOGGER.debug("Running update_sensor_availability for %s", self._attr_name)
             for sensor in self.sensors.values():
                 sensor.update_availability()
 
-        _LOGGER.debug("Stopping update_sensor_availability for %s", self.name)
+        _LOGGER.debug("Stopping update_sensor_availability for %s", self._attr_name)
 
-    async def process_message(self, message: NMEA2000Message) -> None:
+    async def status_callback(self, state: State) -> None:
+        if state == State.CONNECTED:
+            self._attr_native_value = "Running"
+        elif state == State.DISCONNECTED:
+            self._attr_native_value = "Disconnected"
+        else:
+            self._attr_native_value = ""
+        _LOGGER.debug("Got new state: %s. sensor state will be: %s", state, self._attr_state)
+        self.schedule_update_ha_state()
+
+    async def receive_callback(self, message: NMEA2000Message) -> None:
         """Process a received NMEA 2000 message."""
         _LOGGER.debug("Processing message: %s", message)
 
@@ -165,7 +188,7 @@ class Sensor(SensorEntity):
                 primary_key_prefix += "_" + str(field.value)
         #Using MD% as we dont need secure hashing and speed matters.
         primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
-        sensor_name_prefix = f"{self.name}_{message.id}_{primary_key_prefix_hash}_"
+        sensor_name_prefix = f"{self._attr_name}_{message.id}_{primary_key_prefix_hash}_"
 
         for field in message.fields:
             # Skip undefined fields
@@ -187,11 +210,10 @@ class Sensor(SensorEntity):
                     sensor_name,
                     field.name,
                     value,
-                    "NMEA 2000",
                     field.unit_of_measurement,
                     message.description,
                     message.id,
-                    self.name,
+                    self._attr_name,
                 )
 
                 self.async_add_entities([sensor])
@@ -206,11 +228,6 @@ class Sensor(SensorEntity):
                 sensor.set_state(value)
 
     @property
-    def name(self):
-        """Return the name of the sensor."""
-        return self._name
-
-    @property
     def extra_state_attributes(self):
         """Return the attributes of the entity (if any JSON present)."""
         return None
@@ -218,11 +235,11 @@ class Sensor(SensorEntity):
     @property
     def native_value(self):
         """Return the state of the sensor."""
-        return "Running"  # todo: check if gateway is running
+        return self._attr_native_value 
 
     @callback
     def stop(self, event):
         """Close resources for the TCP connection."""
-        _LOGGER.debug("Sensor %s closed", self.name)
+        _LOGGER.debug("Sensor %s closed", self._attr_name)
         self.stop_event.set()
         self.gateway.close()
