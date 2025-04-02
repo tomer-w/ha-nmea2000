@@ -29,7 +29,7 @@ class NMEA2000Sensor(SensorEntity):
         self.entity_id = f"sensor.{self._attr_unique_id}"
         self._attr_name = friendly_name
         self._attr_native_value = initial_state
-        self._attr_native_unit_of_measurement = unit_of_measurement if unit_of_measurement is not None e
+        self._attr_native_unit_of_measurement = unit_of_measurement
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN)},
             manufacturer="NMEA 2000",
