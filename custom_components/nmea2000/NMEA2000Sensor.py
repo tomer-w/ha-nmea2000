@@ -19,21 +19,21 @@ class NMEA2000Sensor(SensorEntity):
         initial_state,
         unit_of_measurement=None,
         device_name=None,
-        sentence_type=None,
         instance_name=None,
     ) -> None:
         """Initialize the sensor."""
-        _LOGGER.info("Initializing sensor: %s with state: %s", name, initial_state)
-
+        _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s, unit_of_measurement=%s, device_name=%s, instance_name=%s",
+                      name, friendly_name, initial_state, unit_of_measurement, device_name, instance_name)
         self._attr_unique_id = name.lower().replace(" ", "_")
         self.entity_id = f"sensor.{self._attr_unique_id}"
         self._attr_name = friendly_name
+        self._device_name = device_name
         self._attr_native_value = initial_state
         self._attr_native_unit_of_measurement = unit_of_measurement
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN)},
+            identifiers={(DOMAIN, "sensor", device_name)},
             manufacturer="NMEA 2000",
-            model=sentence_type,
+            model=device_name,
             name=device_name,
             via_device=(DOMAIN, instance_name))
         self._last_updated = datetime.now()

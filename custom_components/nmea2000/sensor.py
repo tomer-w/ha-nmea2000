@@ -131,11 +131,13 @@ class Sensor(SensorEntity):
         gateway: AsyncIOClient,
     ) -> None:
         """Initialize the SensorBase."""
+        _LOGGER.info("Initializing Sensor: mode=%s, url=%s, name: %s", mode, url, name)
+        self._device_name = name
         self._attr_name = "Status"
         self._attr_unique_id = name.lower().replace(" ", "_")
         self.entity_id = f"sensor.{self._attr_unique_id}"
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN)},
+            identifiers={(DOMAIN, "Gateway", name)},
             manufacturer="NMEA 2000",
             model=f"NMEA 2000 {mode} Gateway",
             name=name,
@@ -212,7 +214,6 @@ class Sensor(SensorEntity):
                     value,
                     field.unit_of_measurement,
                     message.description,
-                    message.id,
                     self._attr_name,
                 )
 
