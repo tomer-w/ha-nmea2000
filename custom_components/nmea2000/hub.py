@@ -77,7 +77,7 @@ class Hub:
         elif mode == "TCP":
             ip = entry.data[CONF_IP]
             port = entry.data[CONF_PORT]
-            _LOGGER.info("TCP sensor with name: %s, IP: %s, port: %s", name, ip, port)
+            _LOGGER.info("TCP sensor with name: %s, IP: %s, port: %s", self.name, ip, port)
             self.gateway = TcpNmea2000Gateway(ip, port, exclude_pgns=pgn_exclude, include_pgns=pgn_include)
             url = f"tcp://{ip}:{port}"
         else:
