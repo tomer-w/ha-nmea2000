@@ -19,11 +19,11 @@ class NMEA2000Sensor(SensorEntity):
         initial_state,
         unit_of_measurement=None,
         device_name=None,
-        instance_name=None,
+        via_device=None,
     ) -> None:
         """Initialize the sensor."""
-        _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s, unit_of_measurement=%s, device_name=%s, instance_name=%s",
-                      name, friendly_name, initial_state, unit_of_measurement, device_name, instance_name)
+        _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s, unit_of_measurement=%s, device_name=%s, via_device=%s",
+                      name, friendly_name, initial_state, unit_of_measurement, device_name, via_device)
         self._attr_unique_id = name.lower().replace(" ", "_")
         self.entity_id = f"sensor.{self._attr_unique_id}"
         self._attr_name = friendly_name
@@ -31,11 +31,11 @@ class NMEA2000Sensor(SensorEntity):
         self._attr_native_value = initial_state
         self._attr_native_unit_of_measurement = unit_of_measurement
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, "sensor", device_name)},
+            identifiers={(DOMAIN, self._device_name)},
             manufacturer="NMEA 2000",
             model=device_name,
             name=device_name,
-            via_device=(DOMAIN, instance_name))
+            via_device=((DOMAIN, via_device) if via_device is not None else None))
         self._last_updated = datetime.now()
         if initial_state is None or initial_state == "":
             self._available = False

@@ -2,9 +2,10 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
+from homeassistant.const import CONF_NAME
 # from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_PGN_INCLUDE, CONF_PGN_EXCLUDE, CONF_PORT, CONF_IP, CONF_BAUDRATE, CONF_MODE, CONF_SERIAL_PORT, CONF_MODE_TCP, CONF_MODE_USB
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -12,21 +13,43 @@ _LOGGER = logging.getLogger(__name__)
 
 USB_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required("serial_port", default="/dev/ttyUSB0"): str,
-        vol.Required("baudrate", default=2000000): int,
-        vol.Optional("pgn_include"): str,
-        vol.Optional("pgn_exclude"): str,
+        vol.Required(CONF_SERIAL_PORT, default="/dev/ttyUSB0"): str,
+        vol.Required(CONF_BAUDRATE, default=2000000): int,
+        vol.Optional(CONF_PGN_INCLUDE): str,
+        vol.Optional(CONF_PGN_EXCLUDE): str,
     }
 )
 TCP_DATA_SCHEMA = vol.Schema(
     {
-        vol.Optional("ip", default="192.168.0.46"): str,
-        vol.Optional("port", default=8881): int,
-        vol.Optional("pgn_include"): str,
-        vol.Optional("pgn_exclude"): str,
+        vol.Optional(CONF_IP, default="192.168.0.46"): str,
+        vol.Optional(CONF_PORT, default=8881): int,
+        vol.Optional(CONF_PGN_INCLUDE): str,
+        vol.Optional(CONF_PGN_EXCLUDE): str,
     }
 )
 
+def parse_and_validate_comma_separated_integers(input_str: str) -> list[int]:
+    """Parse and validate a comma-separated string of integers."""
+    # Check if the input string is empty or contains only whitespace
+    if not input_str.strip():
+        return []
+
+    # Split the string by commas to get potential integer values
+    potential_integers = input_str.split(",")
+
+    validated_integers = []
+    for value in potential_integers:
+        value = value.strip()  # Remove any leading/trailing whitespace
+        if value:  # Check if the string is not empty
+            try:
+                # Attempt to convert the string to an integer
+                integer_value = int(value)
+                validated_integers.append(integer_value)
+            except ValueError:
+                # Raise an error indicating the specific value that couldn't be converted
+                raise ValueError(f"Invalid pgn value found: '{value}' in input '{input_str}'")
+
+    return validated_integers
 
 class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
@@ -37,17 +60,17 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             existing_names = {
-                entry.data.get("name") for entry in self._async_current_entries()
+                entry.data.get(CONF_NAME) for entry in self._async_current_entries()
             }
             _LOGGER.debug("Existing names in the integration: %s", existing_names)
 
-            if user_input["name"] in existing_names:
+            if user_input[CONF_NAME] in existing_names:
                 _LOGGER.debug("Name exists error")
-                errors["name"] = "name_exists"
+                errors[CONF_NAME] = "name_exists"
             else:
                 _LOGGER.debug(
                     "User input is valid, creating entry with name: %s",
-                    user_input.get("name"),
+                    user_input.get(CONF_NAME),
                 )
                 self.data = user_input
                 return await self.async_step_options()
@@ -56,9 +79,9 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required("name"): str,
-                    vol.Required("mode", default="USB"): SelectSelector(
-                        SelectSelectorConfig(options=["USB", "TCP"])
+                    vol.Required(CONF_NAME): str,
+                    vol.Required(CONF_MODE, default=CONF_MODE_USB): SelectSelector(
+                        SelectSelectorConfig(options=[CONF_MODE_USB, CONF_MODE_TCP])
                     ),
                 }
             ),
@@ -72,17 +95,30 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             user_input,
             self.data,
         )
-        errors = {}
 
+        errors = {}
         if user_input is not None:
-            new_data = self.data | user_input
-            _LOGGER.debug("final data for create: %s", new_data)
-            return self.async_create_entry(title=new_data.get("name"), data=new_data)
+            if CONF_PGN_INCLUDE in user_input:
+                try:
+                    parse_and_validate_comma_separated_integers(user_input[CONF_PGN_INCLUDE])
+                except ValueError:
+                    errors[CONF_PGN_INCLUDE] = "not_valid"
+            
+            if CONF_PGN_EXCLUDE in user_input:
+                try:
+                    parse_and_validate_comma_separated_integers(user_input[CONF_PGN_EXCLUDE])
+                except ValueError:
+                    errors[CONF_PGN_EXCLUDE] = "not_valid"
+
+            if len(errors) == 0:
+                new_data = self.data | user_input
+                _LOGGER.debug("final data for create: %s", new_data)
+                return self.async_create_entry(title=new_data.get(CONF_NAME), data=new_data)
 
         return self.async_show_form(
             step_id="options",
             data_schema=USB_DATA_SCHEMA
-            if self.data["mode"] == "USB"
+            if self.data[CONF_MODE] == CONF_MODE_USB
             else TCP_DATA_SCHEMA,
             errors=errors,
         )
@@ -104,31 +140,45 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         current_data = self.config_entry.data
         _LOGGER.debug("Current options before any updates: %s", current_data)
 
+        errors = {}
         if user_input is not None:
             _LOGGER.debug("Processing user input")
 
             _LOGGER.debug("Received user_input: %s", user_input)
 
-            new_data = current_data | user_input
-            _LOGGER.debug("New data after processing user_input: %s", new_data)
+            if CONF_PGN_INCLUDE in user_input:
+                try:
+                    parse_and_validate_comma_separated_integers(user_input[CONF_PGN_INCLUDE])
+                except ValueError:
+                    errors[CONF_PGN_INCLUDE] = "not_valid"
+            
+            if CONF_PGN_EXCLUDE in user_input:
+                try:
+                    parse_and_validate_comma_separated_integers(user_input[CONF_PGN_EXCLUDE])
+                except ValueError:
+                    errors[CONF_PGN_EXCLUDE] = "not_valid"
 
-            # Update the config entry with new data.
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data
-            )
+            if CONF_PGN_INCLUDE in user_input and CONF_PGN_EXCLUDE in user_input:
+                errors[CONF_PGN_EXCLUDE] = "include_exclude_only_one"
 
-            _LOGGER.debug("data updated with user input. New data: %s", new_data)
+            if len(errors) == 0:
+                new_data = current_data | user_input
+                _LOGGER.debug("New data after processing user_input: %s", new_data)
+                # Update the config entry with new data.
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=new_data
+                )
 
-            return self.async_create_entry(title="", data=None)
+                _LOGGER.debug("data updated with user input. New data: %s", new_data)
+                return self.async_create_entry(title="", data=None)
 
-        else:
-            _LOGGER.debug("user_input is None")
-            return self.async_show_form(
-                step_id="init",
-                data_schema=self.add_suggested_values_to_schema(
-                    USB_DATA_SCHEMA
-                    if current_data["mode"] == "USB"
-                    else TCP_DATA_SCHEMA,
-                    current_data,
-                ),
-            )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                USB_DATA_SCHEMA
+                if current_data[CONF_MODE] == CONF_MODE_USB
+                else TCP_DATA_SCHEMA,
+                current_data,
+            ),
+            errors=errors
+        )

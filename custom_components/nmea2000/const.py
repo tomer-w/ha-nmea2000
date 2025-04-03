@@ -1,1 +1,11 @@
 DOMAIN = "nmea2000"
+
+CONF_MODE = "mode"
+CONF_MODE_USB = "USB"
+CONF_MODE_TCP = "TCP"
+CONF_BAUDRATE = "baudrate"
+CONF_SERIAL_PORT = "serial_port"
+CONF_IP = "ip"
+CONF_PORT = "port"
+CONF_PGN_INCLUDE = "pgn_include"
+CONF_PGN_EXCLUDE = "pgn_exclude"
