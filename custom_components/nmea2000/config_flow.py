@@ -102,17 +102,20 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 try:
                     parse_and_validate_comma_separated_integers(user_input[CONF_PGN_INCLUDE])
                 except ValueError:
-                    errors[CONF_PGN_INCLUDE] = "not_valid"
+                    errors[CONF_PGN_INCLUDE] = "pgn_not_valid"
             
             if CONF_PGN_EXCLUDE in user_input:
                 try:
                     parse_and_validate_comma_separated_integers(user_input[CONF_PGN_EXCLUDE])
                 except ValueError:
-                    errors[CONF_PGN_EXCLUDE] = "not_valid"
+                    errors[CONF_PGN_EXCLUDE] = "pgn_not_valid"
+
+            if CONF_PGN_INCLUDE in user_input and CONF_PGN_EXCLUDE in user_input:
+                errors[CONF_PGN_EXCLUDE] = "include_exclude_only_one"
 
             if len(errors) == 0:
                 new_data = self.data | user_input
-                _LOGGER.debug("final data for create: %s", new_data)
+                _LOGGER.debug("No errors. Storing data: %s", new_data)
                 return self.async_create_entry(title=new_data.get(CONF_NAME), data=new_data)
 
         return self.async_show_form(
@@ -150,26 +153,28 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 try:
                     parse_and_validate_comma_separated_integers(user_input[CONF_PGN_INCLUDE])
                 except ValueError:
-                    errors[CONF_PGN_INCLUDE] = "not_valid"
+                    errors[CONF_PGN_INCLUDE] = "pgn_not_valid"
             
             if CONF_PGN_EXCLUDE in user_input:
                 try:
                     parse_and_validate_comma_separated_integers(user_input[CONF_PGN_EXCLUDE])
                 except ValueError:
-                    errors[CONF_PGN_EXCLUDE] = "not_valid"
+                    errors[CONF_PGN_EXCLUDE] = "pgn_not_valid"
 
             if CONF_PGN_INCLUDE in user_input and CONF_PGN_EXCLUDE in user_input:
                 errors[CONF_PGN_EXCLUDE] = "include_exclude_only_one"
 
             if len(errors) == 0:
-                new_data = current_data | user_input
+                new_data = user_input
+                # merge back the name and mode which are missing from this page
+                new_data.update({k: current_data[k] for k in [CONF_NAME, CONF_MODE]})
                 _LOGGER.debug("New data after processing user_input: %s", new_data)
                 # Update the config entry with new data.
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=new_data
                 )
 
-                _LOGGER.debug("data updated with user input. New data: %s", new_data)
+                _LOGGER.debug("data updated with user input. New data: %s", user_input)
                 return self.async_create_entry(title="", data=None)
 
         return self.async_show_form(

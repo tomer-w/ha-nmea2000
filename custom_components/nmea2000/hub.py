@@ -169,14 +169,9 @@ class Hub:
         self.gateway.set_receive_callback(self.receive_callback)
         self.gateway.set_status_callback(self.status_callback)
 
-        # Set up start/stop listeners
-        if hass.is_running:
-            entry.async_create_task(self.hass, self.start(None))
-        else:
-            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, self.start)
         self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self.stop)
 
-    def register_async_add_entities(self, async_add_entities: AddEntitiesCallback) -> None:
+    async def register_async_add_entities(self, async_add_entities: AddEntitiesCallback) -> None:
         """
         Register the callback for adding entities to Home Assistant.
         
@@ -192,6 +187,7 @@ class Hub:
             self.total_messages_sensor, 
             self.msg_per_minute_sensor
         ])
+        await self.start()
 
     async def update_tasks(self) -> None:
         """
@@ -355,13 +351,9 @@ class Hub:
                 )
                 sensor.set_state(value)
 
-    @callback
-    async def start(self, _event: Event) -> None:
+    async def start(self) -> None:
         """
         Connect to the NMEA2000 gateway and start background tasks.
-        
-        Args:
-            _event: Event that triggered the start (can be None)
         """
         _LOGGER.debug("NMEA2000 %s starting", self.name)
         await self.gateway.connect()

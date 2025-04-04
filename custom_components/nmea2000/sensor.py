@@ -21,6 +21,6 @@ async def async_setup_entry(
     _LOGGER.debug("NMEA2000 %s async_setup_entry", entry.data[CONF_NAME])
 
     hub = entry.runtime_data
-    hub.register_async_add_entities(async_add_entities)
+    await hub.register_async_add_entities(async_add_entities)
 
     return True

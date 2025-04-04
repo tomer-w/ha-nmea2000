@@ -2,7 +2,9 @@
   "title": "NMEA 2000 Gateway",
   "config": {
     "error": {
-      "name_exists": "This device name is already in use, please choose a different one."
+      "name_exists": "This device name is already in use, please choose a different one.",
+      "pgn_not_valid": "PGN list is invalid. Should be comma separated list of numbers.",
+      "include_exclude_only_one": "One one of [Include PGN, Exclude PGN] can be specified."
     },
     "step": {
       "user": {
@@ -29,6 +31,11 @@
     }
   },
   "options": {
+    "error": {
+      "name_exists": "This device name is already in use, please choose a different one.",
+      "pgn_not_valid": "PGN list is invalid. Should be comma separated list of numbers.",
+      "include_exclude_only_one": "One one of [Include PGN, Exclude PGN] can be specified."
+    },
     "step": {
       "init": {
         "description": "Choose the gateway connection parameters and specify which PGNs to include or exclude. For best performance only use the PGNs that you wish to use. You can always update this later.",
