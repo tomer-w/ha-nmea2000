@@ -22,14 +22,23 @@ A Home Assistant integration that brings marine data to your smart home. Automat
 - A working Home Assistant installation
 - NMEA 2000 network with compatible gateway (USB or TCP)
 
-### Quick Start
-1. **Install Gateway**: Connect and configure your NMEA 2000 gateway device
-2. **Download Integration**: Install via HACS (Home Assistant Community Store)
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tomer-w&repository=ha-nmea2000)
+### 🛠 Installation via HACS
 
-3. **Add Integration**: Go to Settings -> Integrations -> ADD INTEGRATION -> NMEA 2000
-4. **Customize**: Choose what PGNs to monitor and in what cadance you want the updates
+To install this integration in Home Assistant using HACS:
+
+1. Open HACS in Home Assistant.
+2. Go to **Integrations**.
+3. Click the **⋮ menu** (top right) → **Custom repositories**.
+4. Paste this repository URL:  
+   `https://github.com/tomer-w/ha-nmea2000`
+5. Set the category to **Integration** and click **Add**.
+6. Search for **NMEA 2000** in HACS and install it.
+7. Restart Home Assistant when prompted.  
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tomer-w&repository=ha-nmea2000)  
+
+8. **Customize**: Choose what PGNs to monitor and in what cadance you want the updates
 
 # Acknowledgements
 
