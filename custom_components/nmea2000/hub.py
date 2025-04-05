@@ -24,6 +24,7 @@ from .const import (
     CONF_BAUDRATE,
     CONF_IP,
     CONF_PORT,
+    CONF_MS_BETWEEN_UPDATES,
 )
 from .config_flow import parse_and_validate_comma_separated_integers
 from .NMEA2000Sensor import NMEA2000Sensor
@@ -85,6 +86,7 @@ class Hub:
 
         # Retrieve configuration from entry
         self.name = entry.data[CONF_NAME]
+        self.ms_between_updates = entry.data[CONF_MS_BETWEEN_UPDATES]
         mode = entry.data[CONF_MODE]
         self.device_name = f"NMEA 2000 {mode} Gateway"
 
@@ -103,7 +105,8 @@ class Hub:
             0, 
             "messages", 
             self.device_name, 
-            None
+            None,
+            self.ms_between_updates
         )
         self.msg_per_minute_sensor = NMEA2000Sensor(
             "messages_per_minute", 
@@ -276,10 +279,6 @@ class Hub:
             if field.part_of_primary_key:
                 primary_key_prefix += "_" + str(field.value)
         
-        # Using MD5 as we don't need secure hashing and speed matters
-        primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
-        sensor_name_prefix = f"{self.name}_{message.id}_{primary_key_prefix_hash}_"
-
         # Create or update PGN message count sensors
         pgn_sensor = self.sensors.get(message.PGN)
         if pgn_sensor is None:
@@ -303,7 +302,11 @@ class Hub:
                 new_value,
             )
             pgn_sensor.set_state(new_value)
-            
+
+        # Using MD5 as we don't need secure hashing and speed matters
+        primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
+        sensor_name_prefix = f"{message.PGN}_{primary_key_prefix_hash}_"
+
         # Process individual fields in the message
         for field in message.fields:
             # Skip undefined or unusable field types
@@ -328,7 +331,7 @@ class Hub:
             value = field.value if field.value is not None else field.raw_value
             
             # Check for sensor existence and create/update accordingly
-            sensor = self.sensors.get(field.id)
+            sensor = self.sensors.get(sensor_name)
             if sensor is None:
                 _LOGGER.info("Creating new sensor for %s", sensor_name)
                 # Create new sensor
@@ -339,9 +342,10 @@ class Hub:
                     field.unit_of_measurement,
                     message.description,
                     self.device_name,
+                    self.ms_between_updates
                 )
                 self.async_add_entities([sensor])
-                self.sensors[field.id] = sensor
+                self.sensors[sensor_name] = sensor
             else:
                 # Update existing sensor
                 _LOGGER.debug(

@@ -20,10 +20,11 @@ class NMEA2000Sensor(SensorEntity):
         unit_of_measurement=None,
         device_name=None,
         via_device=None,
+        update_frequncy_ms=0,
     ) -> None:
         """Initialize the sensor."""
-        _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s, unit_of_measurement=%s, device_name=%s, via_device=%s",
-                      name, friendly_name, initial_state, unit_of_measurement, device_name, via_device)
+        _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s, unit_of_measurement=%s, device_name=%s, via_device=%s, update_frequncy=%d",
+                      name, friendly_name, initial_state, unit_of_measurement, device_name, via_device, update_frequncy_ms)
         self._attr_unique_id = name.lower().replace(" ", "_")
         self.entity_id = f"sensor.{self._attr_unique_id}"
         self._attr_name = friendly_name
@@ -37,6 +38,7 @@ class NMEA2000Sensor(SensorEntity):
             name=device_name,
             via_device=((DOMAIN, via_device) if via_device is not None else None))
         self._last_updated = datetime.now()
+        self.update_frequncy_ms = update_frequncy_ms
         if initial_state is None or initial_state == "":
             self._available = False
             _LOGGER.info("Creating sensor: '%s' as unavailable", self._attr_name)
@@ -71,8 +73,13 @@ class NMEA2000Sensor(SensorEntity):
     def set_state(self, new_state):
         """Set the state of the sensor."""
         should_update = False
-        self._last_updated = datetime.now()
+        now = datetime.now()
 
+        if (self.update_frequncy_ms != 0) and ((now - self._last_updated) < timedelta(milliseconds=self.update_frequncy_ms)):
+            # If the update frequency is not met, bail out without any changes
+            return
+        self._last_updated = now
+        
         if new_state not in [None, "", self._attr_native_value]:
             # Since the state is valid, update the sensor's state
             self._attr_native_value = new_state

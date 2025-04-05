@@ -5,7 +5,7 @@ from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
 from homeassistant.const import CONF_NAME
 # from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN, CONF_PGN_INCLUDE, CONF_PGN_EXCLUDE, CONF_PORT, CONF_IP, CONF_BAUDRATE, CONF_MODE, CONF_SERIAL_PORT, CONF_MODE_TCP, CONF_MODE_USB
+from .const import DOMAIN, CONF_PGN_INCLUDE, CONF_PGN_EXCLUDE, CONF_PORT, CONF_IP, CONF_BAUDRATE, CONF_MODE, CONF_SERIAL_PORT, CONF_MODE_TCP, CONF_MODE_USB, CONF_MS_BETWEEN_UPDATES
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -17,6 +17,7 @@ USB_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_BAUDRATE, default=2000000): int,
         vol.Optional(CONF_PGN_INCLUDE): str,
         vol.Optional(CONF_PGN_EXCLUDE): str,
+        vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
     }
 )
 TCP_DATA_SCHEMA = vol.Schema(
@@ -25,6 +26,7 @@ TCP_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_PORT, default=8881): int,
         vol.Optional(CONF_PGN_INCLUDE): str,
         vol.Optional(CONF_PGN_EXCLUDE): str,
+        vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
     }
 )
 

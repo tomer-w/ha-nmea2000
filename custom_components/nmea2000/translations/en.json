@@ -22,7 +22,8 @@
           "ip": "Gateway IP address",
           "port": "Gateway port number",
           "pgn_include": "PGNs to include (comma-separated list)",
-          "pgn_exclude": "PGNs to exclude (comma-separated list)"
+          "pgn_exclude": "PGNs to exclude (comma-separated list)",
+          "ms_between_updates": "Number of milliseconds between updates (0=Update always)"
         }
       },
       "success": {
@@ -45,7 +46,8 @@
           "ip": "Gateway IP address",
           "port": "Gateway port number",
           "pgn_include": "PGNs to include (comma-separated list)",
-          "pgn_exclude": "PGNs to exclude (comma-separated list)"
+          "pgn_exclude": "PGNs to exclude (comma-separated list)",
+          "ms_between_updates": "Number of milliseconds between updates (0=Update always)"
         }
       }
     }
