@@ -7,10 +7,12 @@ from homeassistant.const import Platform
 from .const import DOMAIN
 from .hub import Hub
 import logging
-
+import importlib.metadata
+import asyncio
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 _LOGGER = logging.getLogger(__name__)
 
+nmea2000_version: str = None
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Handle options update."""
@@ -19,10 +21,17 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     await hass.config_entries.async_reload(entry.entry_id)
 
 
+async def get_package_version(package_name):
+    loop = asyncio.get_event_loop()
+    version = await loop.run_in_executor(None, importlib.metadata.version, package_name)
+    return version
+
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the NMEA2000 integration."""
     version = getattr(hass.data["integrations"][DOMAIN], "version", 0)
-    _LOGGER.debug("Setting up NMEA2000 integration. Version: %s", version)
+    global nmea2000_version
+    nmea2000_version = await get_package_version("nmea2000")
+    _LOGGER.debug("Setting up NMEA2000 integration. Version: %s. NMEA 2000 package version: %s", version, nmea2000_version)
     return True
 
 

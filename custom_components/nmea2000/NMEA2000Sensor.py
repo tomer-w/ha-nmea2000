@@ -14,7 +14,7 @@ class NMEA2000Sensor(SensorEntity):
 
     def __init__(
         self,
-        name,
+        id,
         friendly_name,
         initial_state,
         unit_of_measurement=None,
@@ -24,8 +24,8 @@ class NMEA2000Sensor(SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s, unit_of_measurement=%s, device_name=%s, via_device=%s, update_frequncy=%d",
-                      name, friendly_name, initial_state, unit_of_measurement, device_name, via_device, update_frequncy_ms)
-        self._attr_unique_id = name.lower().replace(" ", "_")
+                      id, friendly_name, initial_state, unit_of_measurement, device_name, via_device, update_frequncy_ms)
+        self._attr_unique_id = id.lower().replace(" ", "_")
         self.entity_id = f"sensor.{self._attr_unique_id}"
         self._attr_name = friendly_name
         self._device_name = device_name

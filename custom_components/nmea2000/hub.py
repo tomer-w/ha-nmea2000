@@ -86,36 +86,10 @@ class Hub:
 
         # Retrieve configuration from entry
         self.name = entry.data[CONF_NAME]
+        self.id = self.name.lower().replace(" ", "_")
         self.ms_between_updates = entry.data[CONF_MS_BETWEEN_UPDATES]
         mode = entry.data[CONF_MODE]
         self.device_name = f"NMEA 2000 {mode} Gateway"
-
-        # Create system sensors
-        self.state_sensor = NMEA2000Sensor(
-            "state", 
-            "State", 
-            self.state, 
-            None, 
-            self.device_name, 
-            None
-        )
-        self.total_messages_sensor = NMEA2000Sensor(
-            "total_messages", 
-            "Total message count", 
-            0, 
-            "messages", 
-            self.device_name, 
-            None,
-            self.ms_between_updates
-        )
-        self.msg_per_minute_sensor = NMEA2000Sensor(
-            "messages_per_minute", 
-            "Messages per minute", 
-            0, 
-            "msg/min", 
-            self.device_name, 
-            None
-        )
 
         # Parse PGN include/exclude lists
         pgn_include = parse_and_validate_comma_separated_integers(
@@ -131,6 +105,33 @@ class Hub:
             mode,
             pgn_include,
             pgn_exclude,
+        )
+
+        # Create system sensors
+        self.state_sensor = NMEA2000Sensor(
+            self.id+"_state", 
+            "State", 
+            self.state, 
+            None, 
+            self.device_name, 
+            None
+        )
+        self.total_messages_sensor = NMEA2000Sensor(
+            self.id+"_total_messages", 
+            "Total message count", 
+            0, 
+            "messages", 
+            self.device_name, 
+            None,
+            self.ms_between_updates
+        )
+        self.msg_per_minute_sensor = NMEA2000Sensor(
+            self.id+"_messages_per_minute", 
+            "Messages per minute", 
+            0, 
+            "msg/min", 
+            self.device_name, 
+            None
         )
 
         # Configure the appropriate gateway based on mode
@@ -280,11 +281,11 @@ class Hub:
                 primary_key_prefix += "_" + str(field.value)
         
         # Create or update PGN message count sensors
-        pgn_sensor = self.sensors.get(message.PGN)
+        pgn_sensor = self.sensors.get(message.id)
         if pgn_sensor is None:
             _LOGGER.info("Creating new sensor for PGN %d", message.PGN)
             sensor = NMEA2000Sensor(
-                message.id,
+                self.id + "_" + message.id,
                 f"PGN {message.PGN} message count",
                 1,
                 "count",
@@ -292,7 +293,7 @@ class Hub:
                 None
             )
             self.async_add_entities([sensor])
-            self.sensors[message.PGN] = sensor
+            self.sensors[message.id] = sensor
         else:
             # If sensor exists, increment counter
             new_value = pgn_sensor.native_value + 1
@@ -305,7 +306,7 @@ class Hub:
 
         # Using MD5 as we don't need secure hashing and speed matters
         primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
-        sensor_name_prefix = f"{message.PGN}_{primary_key_prefix_hash}_"
+        sensor_name_prefix = f"{self.id}_{message.id}_{primary_key_prefix_hash}_"
 
         # Process individual fields in the message
         for field in message.fields:
@@ -325,18 +326,18 @@ class Hub:
                 continue
 
             # Construct unique sensor name
-            sensor_name = sensor_name_prefix + field.id
+            sensor_id = sensor_name_prefix + field.id
             
             # Use the field value if available, otherwise use raw value
             value = field.value if field.value is not None else field.raw_value
             
             # Check for sensor existence and create/update accordingly
-            sensor = self.sensors.get(sensor_name)
+            sensor = self.sensors.get(sensor_id)
             if sensor is None:
-                _LOGGER.info("Creating new sensor for %s", sensor_name)
+                _LOGGER.info("Creating new sensor for %s", sensor_id)
                 # Create new sensor
                 sensor = NMEA2000Sensor(
-                    sensor_name,
+                    sensor_id,
                     field.name,
                     value,
                     field.unit_of_measurement,
@@ -345,7 +346,7 @@ class Hub:
                     self.ms_between_updates
                 )
                 self.async_add_entities([sensor])
-                self.sensors[sensor_name] = sensor
+                self.sensors[sensor_id] = sensor
             else:
                 # Update existing sensor
                 _LOGGER.debug(
