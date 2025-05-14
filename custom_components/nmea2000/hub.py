@@ -78,6 +78,7 @@ class Hub:
         self.state = "Initializing"
         self.async_add_entities = None
         self.sensors = {}
+        self.sensor_instance_latest = {}
         
         # Initialize message counting variables
         self.message_count_per_interval = 0
@@ -306,7 +307,7 @@ class Hub:
 
         # Using MD5 as we don't need secure hashing and speed matters
         primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
-        sensor_name_prefix = f"{self.id}_{message.id}_{primary_key_prefix_hash}_"
+        sensor_name_prefix = f"{self.id}_{message.PGN}_{message.id}_{primary_key_prefix_hash}_"
 
         # Process individual fields in the message
         for field in message.fields:
@@ -335,13 +336,18 @@ class Hub:
             sensor = self.sensors.get(sensor_id)
             if sensor is None:
                 _LOGGER.info("Creating new sensor for %s", sensor_id)
+
+                # find the latest id for the PGN id.
+                id_count = self.sensor_instance_latest.get(message.id, 1)
+                self.sensor_instance_latest[message.id] = id_count + 1
+
                 # Create new sensor
                 sensor = NMEA2000Sensor(
                     sensor_id,
                     field.name,
                     value,
                     field.unit_of_measurement,
-                    message.description,
+                    f"{message.description} ({id_count})",
                     self.device_name,
                     self.ms_between_updates
                 )
