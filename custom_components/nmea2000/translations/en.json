@@ -23,6 +23,7 @@
           "port": "Gateway port number",
           "pgn_include": "PGNs to include (comma-separated list)",
           "pgn_exclude": "PGNs to exclude (comma-separated list)",
+          "exclude_AIS": "Exclude all AIS PGNs (those keep generating new targets)",
           "ms_between_updates": "Number of milliseconds between updates (0=Update always)"
         }
       },
@@ -47,6 +48,7 @@
           "port": "Gateway port number",
           "pgn_include": "PGNs to include (comma-separated list)",
           "pgn_exclude": "PGNs to exclude (comma-separated list)",
+          "exclude_AIS": "Exclude all AIS PGNs (those keep generating new targets)",
           "ms_between_updates": "Number of milliseconds between updates (0=Update always)"
         }
       }

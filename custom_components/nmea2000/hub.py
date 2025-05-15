@@ -16,6 +16,7 @@ from datetime import timedelta
 
 # Local imports
 from .const import (
+    CONF_EXCLUDE_AIS,
     CONF_MODE,
     CONF_PGN_INCLUDE,
     CONF_PGN_EXCLUDE,
@@ -99,6 +100,12 @@ class Hub:
         pgn_exclude = parse_and_validate_comma_separated_integers(
             entry.data.get(CONF_PGN_EXCLUDE, "")
         )
+        # remove the AIS PGNs if needed.
+        if entry.data.get(CONF_EXCLUDE_AIS):
+            pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842])
+        # remove duplicates
+        pgn_include = list(set(pgn_include))
+        pgn_exclude = list(set(pgn_exclude))
 
         _LOGGER.info(
             "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s",
