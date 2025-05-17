@@ -13,6 +13,7 @@ import contextlib
 import time
 from typing import Dict
 from datetime import timedelta
+from nmea2000 import PhysicalQuantities
 
 # Local imports
 from .const import (
@@ -79,7 +80,6 @@ class Hub:
         self.state = "Initializing"
         self.async_add_entities = None
         self.sensors = {}
-        self.sensor_instance_latest = {}
         
         # Initialize message counting variables
         self.message_count_per_interval = 0
@@ -102,17 +102,23 @@ class Hub:
         )
         # remove the AIS PGNs if needed.
         if entry.data.get(CONF_EXCLUDE_AIS):
-            pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842])
+            pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842, 129793, 129797])
+        #Exclude other PGNs that are not needed for the sensor.
+        pgn_exclude.extend([126720, 60928, 61184])
+
         # remove duplicates
         pgn_include = list(set(pgn_include))
         pgn_exclude = list(set(pgn_exclude))
 
+        preferred_units = {PhysicalQuantities.TEMPERATURE:"C", PhysicalQuantities.ANGLE:"deg"}
+
         _LOGGER.info(
-            "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s",
+            "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s, preferred_units: %s",
             self.name,
             mode,
             pgn_include,
             pgn_exclude,
+            preferred_units
         )
 
         # Create system sensors
@@ -155,7 +161,8 @@ class Hub:
             self.gateway = UsbNmea2000Gateway(
                 serial_port, 
                 exclude_pgns=pgn_exclude, 
-                include_pgns=pgn_include
+                include_pgns=pgn_include,
+                preferred_units=preferred_units,
             )
             url = f"usb://{serial_port}"
         elif mode == "TCP":
@@ -171,7 +178,8 @@ class Hub:
                 ip, 
                 port, 
                 exclude_pgns=pgn_exclude, 
-                include_pgns=pgn_include
+                include_pgns=pgn_include,
+                preferred_units=preferred_units,
             )
             url = f"tcp://{ip}:{port}"
         else:
@@ -344,17 +352,13 @@ class Hub:
             if sensor is None:
                 _LOGGER.info("Creating new sensor for %s", sensor_id)
 
-                # find the latest id for the PGN id.
-                id_count = self.sensor_instance_latest.get(message.id, 1)
-                self.sensor_instance_latest[message.id] = id_count + 1
-
                 # Create new sensor
                 sensor = NMEA2000Sensor(
                     sensor_id,
                     field.name,
                     value,
                     field.unit_of_measurement,
-                    f"{message.description} ({id_count})",
+                    f"{message.description} ({primary_key_prefix_hash[:6]})",
                     self.device_name,
                     self.ms_between_updates
                 )
@@ -368,6 +372,7 @@ class Hub:
                     value,
                 )
                 sensor.set_state(value)
+        
 
     async def start(self) -> None:
         """
