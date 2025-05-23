@@ -6,6 +6,7 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
+UNAVAILABLE_DURATION = 10 # 10 minutes
 
 # SmartSensor class representing a basic sensor entity with state
 class NMEA2000Sensor(SensorEntity):
@@ -37,7 +38,7 @@ class NMEA2000Sensor(SensorEntity):
             model=device_name,
             name=device_name,
             via_device=((DOMAIN, via_device) if via_device is not None else None))
-        self._last_updated = datetime.now()
+        self._last_updated = self._last_seen = datetime.now()
         self.update_frequncy_ms = update_frequncy_ms
         if initial_state is None or initial_state == "":
             self._available = False
@@ -63,7 +64,7 @@ class NMEA2000Sensor(SensorEntity):
     def update_availability(self):
         """Update the availability status of the sensor."""
 
-        new_availability = (datetime.now() - self._last_updated) < timedelta(minutes=4)
+        new_availability = (datetime.now() - self._last_seen) < timedelta(minutes=UNAVAILABLE_DURATION)
 
         if self._available != new_availability:
             _LOGGER.warning("Setting sensor:'%s' as unavailable", self._attr_name)
@@ -76,17 +77,7 @@ class NMEA2000Sensor(SensorEntity):
         now = datetime.now()
         old_state = self._attr_native_value
         self._attr_native_value = new_state
-
-        if (self.update_frequncy_ms != 0) and ((now - self._last_updated) < timedelta(milliseconds=self.update_frequncy_ms)):
-            # If the update frequency is not met, bail out without any changes
-            return
-        self._last_updated = now
-        
-        if new_state != old_state:
-            # Since the state is valid, update the sensor's state
-            if not ignore_tracing:
-                _LOGGER.info("Setting state for sensor: '%s' to %s", self._attr_name, new_state)
-            should_update = True
+        self._last_seen = now
 
         if not self._available:
             self._available = True
@@ -94,5 +85,17 @@ class NMEA2000Sensor(SensorEntity):
             if not ignore_tracing:
                 _LOGGER.info("Setting sensor:'%s' as available", self._attr_name)
 
+        if (not should_update) and (self.update_frequncy_ms != 0) and ((now - self._last_updated) < timedelta(milliseconds=self.update_frequncy_ms)):
+            # If the update frequency is not met, bail out without any changes
+            _LOGGER.debug("Skipping update for sensor:'%s' as of update frequency", self._attr_name)
+            return
+        
+        if new_state != old_state:
+            # Since the state is valid, update the sensor's state
+            if not ignore_tracing:
+                _LOGGER.info("Setting state for sensor: '%s' to %s", self._attr_name, new_state)
+            should_update = True
+
         if should_update:
+            self._last_updated = now
             self.async_schedule_update_ha_state()
