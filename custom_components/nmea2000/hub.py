@@ -337,7 +337,7 @@ class Hub:
             if field.part_of_primary_key:
                 primary_key_prefix += "_" + str(field.value)
         if primary_key_prefix == "":
-            primary_key_prefix += message.source
+            primary_key_prefix = str(message.source)
         
         # Using MD5 as we don't need secure hashing and speed matters
         primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
