@@ -17,6 +17,7 @@ from nmea2000 import PhysicalQuantities
 from .const import (
     CONF_DEVICE_TYPE,
     CONF_EXCLUDE_AIS,
+    CONF_EXPERIMENTAL,
     CONF_MODE,
     CONF_PGN_INCLUDE,
     CONF_PGN_EXCLUDE,
@@ -101,8 +102,17 @@ class Hub:
         # remove the AIS PGNs if needed.
         if entry.data.get(CONF_EXCLUDE_AIS):
             pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842, 129793, 129797])
+        
+        dump_to_file = None
+        dump_pgns = []
         #Exclude other PGNs that are not needed for the sensor.
-        pgn_exclude.extend([126720, 60928, 61184, 126996])
+        if not entry.data.get(CONF_EXPERIMENTAL):
+            pgn_exclude.extend(["0x1ef00ManufacturerProprietaryFastPacketAddressed", 60928, 61184, 126996])
+        else:        
+            pgn_exclude.extend(["0x1ef00ManufacturerProprietaryFastPacketAddressed", 61184, 126996])
+            # Dump settings
+            dump_to_file = "./dump/dump.json"
+            dump_pgns = [60928]
 
         # remove duplicates
         pgn_include = list(set(pgn_include))
@@ -111,12 +121,14 @@ class Hub:
         preferred_units = {PhysicalQuantities.TEMPERATURE:"C", PhysicalQuantities.ANGLE:"deg"}
 
         _LOGGER.info(
-            "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s, preferred_units: %s",
+            "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s, preferred_units: %s, dump_to_file: %s, dump_pgns: %s",
             self.name,
             mode,
             pgn_include,
             pgn_exclude,
-            preferred_units
+            preferred_units,
+            dump_to_file,
+            dump_pgns
         )
 
         # Create system sensors
@@ -161,6 +173,8 @@ class Hub:
                 exclude_pgns=pgn_exclude, 
                 include_pgns=pgn_include,
                 preferred_units=preferred_units,
+                dump_to_file=dump_to_file,
+                dump_pgns=dump_pgns,
             )
         elif mode == "TCP":
             ip = entry.data[CONF_IP]
@@ -180,6 +194,8 @@ class Hub:
                     exclude_pgns=pgn_exclude, 
                     include_pgns=pgn_include,
                     preferred_units=preferred_units,
+                    dump_to_file=dump_to_file,
+                    dump_pgns=dump_pgns,
                 )
             elif device_type == NetwrorkDeviceType.ACTISENSE:
                 self.gateway = ActisenseNmea2000Gateway(
@@ -188,6 +204,8 @@ class Hub:
                     exclude_pgns=pgn_exclude, 
                     include_pgns=pgn_include,
                     preferred_units=preferred_units,
+                    dump_to_file=dump_to_file,
+                    dump_pgns=dump_pgns,
                 )
             elif device_type == NetwrorkDeviceType.YACHT_DEVICES:
                 self.gateway = YachtDevicesNmea2000Gateway(
@@ -196,6 +214,8 @@ class Hub:
                     exclude_pgns=pgn_exclude, 
                     include_pgns=pgn_include,
                     preferred_units=preferred_units,
+                    dump_to_file=dump_to_file,
+                    dump_pgns=dump_pgns,
                 )
             else:
                 raise Exception(f"device_type {device_type} not supported")

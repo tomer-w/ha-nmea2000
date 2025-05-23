@@ -6,7 +6,7 @@ from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
 from homeassistant.const import CONF_NAME
 # from homeassistant.exceptions import HomeAssistantError
 
-from .const import CONF_DEVICE_TYPE, DOMAIN, CONF_PGN_INCLUDE, CONF_PGN_EXCLUDE, CONF_PORT, CONF_IP, CONF_BAUDRATE, CONF_MODE, CONF_SERIAL_PORT, CONF_MODE_TCP, CONF_MODE_USB, CONF_MS_BETWEEN_UPDATES, CONF_EXCLUDE_AIS
+from .const import CONF_DEVICE_TYPE, CONF_EXPERIMENTAL, DOMAIN, CONF_PGN_INCLUDE, CONF_PGN_EXCLUDE, CONF_PORT, CONF_IP, CONF_BAUDRATE, CONF_MODE, CONF_SERIAL_PORT, CONF_MODE_TCP, CONF_MODE_USB, CONF_MS_BETWEEN_UPDATES, CONF_EXCLUDE_AIS
 import logging
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,6 +26,7 @@ USB_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_PGN_EXCLUDE): str,
         vol.Optional(CONF_EXCLUDE_AIS): bool,
         vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
+        vol.Optional(CONF_EXPERIMENTAL): bool,
     }
 )
 TCP_DATA_SCHEMA = vol.Schema(
@@ -37,10 +38,11 @@ TCP_DATA_SCHEMA = vol.Schema(
         vol.Optional(CONF_PGN_EXCLUDE): str,
         vol.Optional(CONF_EXCLUDE_AIS): bool,
         vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
+        vol.Optional(CONF_EXPERIMENTAL): bool,
     }
 )
 
-def parse_and_validate_comma_separated_integers(input_str: str) -> list[int]:
+def parse_and_validate_comma_separated_integers(input_str: str) -> list[int | str]:
     """Parse and validate a comma-separated string of integers."""
     # Check if the input string is empty or contains only whitespace
     if not input_str.strip():
