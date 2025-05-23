@@ -1,4 +1,4 @@
-# 🚢 ha-nmea2000
+# 🚢 Home Assistant NMEA 2000 Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
