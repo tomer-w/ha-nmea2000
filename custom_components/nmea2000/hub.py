@@ -11,12 +11,11 @@ import asyncio
 import hashlib
 import contextlib
 import time
-from typing import Dict
-from datetime import timedelta
 from nmea2000 import PhysicalQuantities
 
 # Local imports
 from .const import (
+    CONF_DEVICE_TYPE,
     CONF_EXCLUDE_AIS,
     CONF_MODE,
     CONF_PGN_INCLUDE,
@@ -28,7 +27,7 @@ from .const import (
     CONF_PORT,
     CONF_MS_BETWEEN_UPDATES,
 )
-from .config_flow import parse_and_validate_comma_separated_integers
+from .config_flow import NetwrorkDeviceType, parse_and_validate_comma_separated_integers
 from .NMEA2000Sensor import NMEA2000Sensor
 
 # Home Assistant imports
@@ -36,11 +35,10 @@ from homeassistant.core import HomeAssistant, callback, Event
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, EVENT_HOMEASSISTANT_START
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
-from homeassistant.exceptions import ConfigValidationError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 # NMEA 2000 package imports
-from nmea2000 import NMEA2000Message, TcpNmea2000Gateway, UsbNmea2000Gateway, FieldTypes, State
+from nmea2000 import NMEA2000Message, EByteNmea2000Gateway, WaveShareNmea2000Gateway, YachtDevicesNmea2000Gateway, ActisenseNmea2000Gateway, FieldTypes, State
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -158,32 +156,51 @@ class Hub:
                 serial_port,
                 baudrate,
             )
-            self.gateway = UsbNmea2000Gateway(
+            self.gateway = WaveShareNmea2000Gateway(
                 serial_port, 
                 exclude_pgns=pgn_exclude, 
                 include_pgns=pgn_include,
                 preferred_units=preferred_units,
             )
-            url = f"usb://{serial_port}"
         elif mode == "TCP":
             ip = entry.data[CONF_IP]
             port = entry.data[CONF_PORT]
+            device_type = NetwrorkDeviceType(entry.data[CONF_DEVICE_TYPE])
             _LOGGER.info(
-                "TCP sensor with name: %s, IP: %s, port: %s", 
+                "TCP sensor with name: %s, IP: %s, port: %s, device_type: %s", 
                 self.name, 
                 ip, 
-                port
+                port,
+                device_type
             )
-            self.gateway = TcpNmea2000Gateway(
-                ip, 
-                port, 
-                exclude_pgns=pgn_exclude, 
-                include_pgns=pgn_include,
-                preferred_units=preferred_units,
-            )
-            url = f"tcp://{ip}:{port}"
+            if device_type == NetwrorkDeviceType.EBYTE:
+                self.gateway = EByteNmea2000Gateway(
+                    ip, 
+                    port, 
+                    exclude_pgns=pgn_exclude, 
+                    include_pgns=pgn_include,
+                    preferred_units=preferred_units,
+                )
+            elif device_type == NetwrorkDeviceType.ACTISENSE:
+                self.gateway = ActisenseNmea2000Gateway(
+                    ip, 
+                    port, 
+                    exclude_pgns=pgn_exclude, 
+                    include_pgns=pgn_include,
+                    preferred_units=preferred_units,
+                )
+            elif device_type == NetwrorkDeviceType.YACHT_DEVICES:
+                self.gateway = YachtDevicesNmea2000Gateway(
+                    ip, 
+                    port, 
+                    exclude_pgns=pgn_exclude, 
+                    include_pgns=pgn_include,
+                    preferred_units=preferred_units,
+                )
+            else:
+                raise Exception(f"device_type {device_type} not supported")
         else:
-            raise ConfigValidationError(f"mode {mode} not supported")
+            raise Exception(f"mode {mode} not supported")
 
         # Set up callbacks for gateway events
         self.gateway.set_receive_callback(self.receive_callback)
@@ -290,12 +307,6 @@ class Hub:
         self.message_count_per_interval += 1
         self.total_messages_sensor.set_state(self.total_messages_sensor.native_value + 1)
 
-        # Build primary key for the sensor
-        primary_key_prefix = ""
-        for field in message.fields:
-            if field.part_of_primary_key:
-                primary_key_prefix += "_" + str(field.value)
-        
         # Create or update PGN message count sensors
         pgn_sensor = self.sensors.get(message.id)
         if pgn_sensor is None:
@@ -314,12 +325,20 @@ class Hub:
             # If sensor exists, increment counter
             new_value = pgn_sensor.native_value + 1
             _LOGGER.debug(
-                "Updating existing PGN sensor %s with new value: %d",
+                "Updating existing PGN message count sensor %s with new value: %d",
                 pgn_sensor.name,
                 new_value,
             )
-            pgn_sensor.set_state(new_value)
+            pgn_sensor.set_state(new_value, ignore_tracing = True)
 
+        # Build primary key for the sensor
+        primary_key_prefix = ""
+        for field in message.fields:
+            if field.part_of_primary_key:
+                primary_key_prefix += "_" + str(field.value)
+        if primary_key_prefix == "":
+            primary_key_prefix += message.source
+        
         # Using MD5 as we don't need secure hashing and speed matters
         primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
         sensor_name_prefix = f"{self.id}_{message.PGN}_{message.id}_{primary_key_prefix_hash}_"
@@ -335,7 +354,15 @@ class Hub:
                 FieldTypes.FIELD_INDEX
             ]:
                 _LOGGER.debug(
-                    "Skipping field with name: %s and type: %s", 
+                    "Skipping field types. Name: %s and type: %s", 
+                    field.name, 
+                    field.type
+                )
+                continue
+
+            if field.id == 'sid':
+                _LOGGER.debug(
+                    "Skipping field ids. Name: %s and type: %s", 
                     field.name, 
                     field.type
                 )

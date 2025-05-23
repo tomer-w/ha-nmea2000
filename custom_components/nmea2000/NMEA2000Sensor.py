@@ -70,7 +70,7 @@ class NMEA2000Sensor(SensorEntity):
             self._available = new_availability
             self.async_schedule_update_ha_state()
 
-    def set_state(self, new_state):
+    def set_state(self, new_state, ignore_tracing = False):
         """Set the state of the sensor."""
         should_update = False
         now = datetime.now()
@@ -83,13 +83,15 @@ class NMEA2000Sensor(SensorEntity):
         if new_state not in [None, "", self._attr_native_value]:
             # Since the state is valid, update the sensor's state
             self._attr_native_value = new_state
-            _LOGGER.info("Setting state for sensor: '%s' to %s", self._attr_name, new_state)
+            if not ignore_tracing:
+                _LOGGER.info("Setting state for sensor: '%s' to %s", self._attr_name, new_state)
             should_update = True
 
         if not self._available:
             self._available = True
             should_update = True
-            _LOGGER.info("Setting sensor:'%s' as available", self._attr_name)
+            if not ignore_tracing:
+                _LOGGER.info("Setting sensor:'%s' as available", self._attr_name)
 
         if should_update:
             self.async_schedule_update_ha_state()

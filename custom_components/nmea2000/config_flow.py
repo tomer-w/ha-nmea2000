@@ -1,3 +1,4 @@
+from enum import Enum
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
@@ -5,11 +6,17 @@ from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
 from homeassistant.const import CONF_NAME
 # from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN, CONF_PGN_INCLUDE, CONF_PGN_EXCLUDE, CONF_PORT, CONF_IP, CONF_BAUDRATE, CONF_MODE, CONF_SERIAL_PORT, CONF_MODE_TCP, CONF_MODE_USB, CONF_MS_BETWEEN_UPDATES, CONF_EXCLUDE_AIS
+from .const import CONF_DEVICE_TYPE, DOMAIN, CONF_PGN_INCLUDE, CONF_PGN_EXCLUDE, CONF_PORT, CONF_IP, CONF_BAUDRATE, CONF_MODE, CONF_SERIAL_PORT, CONF_MODE_TCP, CONF_MODE_USB, CONF_MS_BETWEEN_UPDATES, CONF_EXCLUDE_AIS
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
+class NetwrorkDeviceType(Enum):
+    """Enum for device types."""
+    EBYTE = "EBYTE"
+    ACTISENSE = "Actisense"
+    YACHT_DEVICES = "Yacht Devices"
+    
 
 USB_DATA_SCHEMA = vol.Schema(
     {
@@ -23,8 +30,9 @@ USB_DATA_SCHEMA = vol.Schema(
 )
 TCP_DATA_SCHEMA = vol.Schema(
     {
-        vol.Optional(CONF_IP, default="192.168.0.46"): str,
-        vol.Optional(CONF_PORT, default=8881): int,
+        vol.Required(CONF_DEVICE_TYPE, default=NetwrorkDeviceType.EBYTE): vol.In([e.value for e in NetwrorkDeviceType]),
+        vol.Required(CONF_IP, default="192.168.0.46"): str,
+        vol.Required(CONF_PORT, default=8881): int,
         vol.Optional(CONF_PGN_INCLUDE): str,
         vol.Optional(CONF_PGN_EXCLUDE): str,
         vol.Optional(CONF_EXCLUDE_AIS): bool,
@@ -41,7 +49,7 @@ def parse_and_validate_comma_separated_integers(input_str: str) -> list[int]:
     # Split the string by commas to get potential integer values
     potential_integers = input_str.split(",")
 
-    validated_integers = y
+    validated_integers = []
     for value in potential_integers:
         value = value.strip()  # Remove any leading/trailing whitespace
         if value:  # Check if the string is not empty
