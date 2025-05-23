@@ -102,7 +102,7 @@ class Hub:
         if entry.data.get(CONF_EXCLUDE_AIS):
             pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842, 129793, 129797])
         #Exclude other PGNs that are not needed for the sensor.
-        pgn_exclude.extend([126720, 60928, 61184])
+        pgn_exclude.extend([126720, 60928, 61184, 126996])
 
         # remove duplicates
         pgn_include = list(set(pgn_include))
@@ -317,7 +317,8 @@ class Hub:
                 1,
                 "count",
                 self.device_name,
-                None
+                None,
+                self.ms_between_updates
             )
             self.async_add_entities([sensor])
             self.sensors[message.id] = sensor

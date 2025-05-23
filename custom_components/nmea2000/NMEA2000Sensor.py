@@ -74,15 +74,16 @@ class NMEA2000Sensor(SensorEntity):
         """Set the state of the sensor."""
         should_update = False
         now = datetime.now()
+        old_state = self._attr_native_value
+        self._attr_native_value = new_state
 
         if (self.update_frequncy_ms != 0) and ((now - self._last_updated) < timedelta(milliseconds=self.update_frequncy_ms)):
             # If the update frequency is not met, bail out without any changes
             return
         self._last_updated = now
         
-        if new_state not in [None, "", self._attr_native_value]:
+        if new_state != old_state:
             # Since the state is valid, update the sensor's state
-            self._attr_native_value = new_state
             if not ignore_tracing:
                 _LOGGER.info("Setting state for sensor: '%s' to %s", self._attr_name, new_state)
             should_update = True
