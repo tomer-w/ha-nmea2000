@@ -103,15 +103,14 @@ class Hub:
         if entry.data.get(CONF_EXCLUDE_AIS):
             pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842, 129793, 129797])
         
+        pgn_exclude.extend(["0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed"])
+
         dump_to_file = None
         dump_pgns = []
         #Exclude other PGNs that are not needed for the sensor.
-        if not entry.data.get(CONF_EXPERIMENTAL):
-            pgn_exclude.extend(["0x1ef00ManufacturerProprietaryFastPacketAddressed", 60928, 61184, 126996])
-        else:        
-            pgn_exclude.extend(["0x1ef00ManufacturerProprietaryFastPacketAddressed", 61184, 126996])
+        if entry.data.get(CONF_EXPERIMENTAL):
             # Dump settings
-            dump_to_file = "./dump/dump.json"
+            dump_to_file = "./dump/dump.jsonl"
             dump_pgns = [60928]
 
         # remove duplicates
@@ -354,6 +353,8 @@ class Hub:
 
         # Build primary key for the sensor
         primary_key_prefix = ""
+        if message.source_iso_name is not None:
+            primary_key_prefix = str(message.source_iso_name) + "_"
         for field in message.fields:
             if field.part_of_primary_key:
                 primary_key_prefix += "_" + str(field.value)
