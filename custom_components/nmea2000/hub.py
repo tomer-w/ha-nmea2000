@@ -102,13 +102,14 @@ class Hub:
         # remove the AIS PGNs if needed.
         if entry.data.get(CONF_EXCLUDE_AIS):
             pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842, 129793, 129797])
-        
-        pgn_exclude.extend(["0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed"])
 
         dump_to_file = None
         dump_pgns = []
         #Exclude other PGNs that are not needed for the sensor.
-        if entry.data.get(CONF_EXPERIMENTAL):
+        if not entry.data.get(CONF_EXPERIMENTAL):
+            # We dont want to create sensors for ISO claim messages. We also dont want PGNs which we dont know yet.
+            pgn_exclude.extend([60928, "0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed"])
+        else:
             # Dump settings
             dump_to_file = "./dump/dump.jsonl"
             dump_pgns = [60928]
@@ -360,6 +361,7 @@ class Hub:
                 primary_key_prefix += "_" + str(field.value)
         if primary_key_prefix == "":
             primary_key_prefix = str(message.source)
+        _LOGGER.debug("primary key prefix: %s", primary_key_prefix)
         
         # Using MD5 as we don't need secure hashing and speed matters
         primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
