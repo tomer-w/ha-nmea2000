@@ -370,11 +370,11 @@ class Hub:
                 )
                 primary_key_prefix = str(message.source)
         else:
-            primary_key_prefix = str(message.source_iso_name)
+            primary_key_prefix = str(message.source_iso_name.name)
         for field in message.fields:
             if field.part_of_primary_key:
                 primary_key_prefix += "_" + str(field.value)
-        _LOGGER.debug("primary key prefix: %s", primary_key_prefix)
+        _LOGGER.debug("primary key prefix: %s. iso name: %s", primary_key_prefix, message.source_iso_name)
 
         # Using MD5 as we don't need secure hashing and speed matters
         primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
