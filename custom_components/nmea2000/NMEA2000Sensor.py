@@ -22,6 +22,7 @@ class NMEA2000Sensor(SensorEntity):
         device_name=None,
         via_device=None,
         update_frequncy_ms=0,
+        manufacturer = None
     ) -> None:
         """Initialize the sensor."""
         _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s, unit_of_measurement=%s, device_name=%s, via_device=%s, update_frequncy=%d",
@@ -34,7 +35,7 @@ class NMEA2000Sensor(SensorEntity):
         self._attr_native_unit_of_measurement = unit_of_measurement
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device_name)},
-            manufacturer="NMEA 2000",
+            manufacturer=manufacturer if manufacturer is not None else "NMEA 2000",
             model=device_name,
             name=device_name,
             via_device=((DOMAIN, via_device) if via_device is not None else None))

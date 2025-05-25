@@ -91,6 +91,7 @@ class Hub:
         self.ms_between_updates = entry.data[CONF_MS_BETWEEN_UPDATES]
         mode = entry.data[CONF_MODE]
         self.device_name = f"NMEA 2000 {mode} Gateway"
+        self.experimental = entry.data.get(CONF_EXPERIMENTAL)
 
         # Parse PGN include/exclude lists
         pgn_include = parse_and_validate_comma_separated_integers(
@@ -106,13 +107,14 @@ class Hub:
         dump_to_file = None
         dump_pgns = []
         #Exclude other PGNs that are not needed for the sensor.
-        if not entry.data.get(CONF_EXPERIMENTAL):
+        if not self.experimental:
             # We dont want to create sensors for ISO claim messages. We also dont want PGNs which we dont know yet.
             pgn_exclude.extend([60928, "0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed"])
         else:
+            pass
             # Dump settings
-            dump_to_file = "./dump/dump.jsonl"
-            dump_pgns = [60928]
+            #dump_to_file = "./dump/dump.jsonl"
+            #dump_pgns = [60928]
 
         # remove duplicates
         pgn_include = list(set(pgn_include))
@@ -354,15 +356,26 @@ class Hub:
 
         # Build primary key for the sensor
         primary_key_prefix = ""
-        if message.source_iso_name is not None:
-            primary_key_prefix = str(message.source_iso_name) + "_"
+        if message.source_iso_name is None:
+            if not self.experimental:
+                _LOGGER.warning(
+                    "Message source ISO name is None, skipping this message. Message: %s", 
+                    message
+                )
+                return
+            else:
+                _LOGGER.warning(
+                    "Message source ISO name is None, using source instead. Message: %s", 
+                    message
+                )
+                primary_key_prefix = str(message.source)
+        else:
+            primary_key_prefix = str(message.source_iso_name)
         for field in message.fields:
             if field.part_of_primary_key:
                 primary_key_prefix += "_" + str(field.value)
-        if primary_key_prefix == "":
-            primary_key_prefix = str(message.source)
         _LOGGER.debug("primary key prefix: %s", primary_key_prefix)
-        
+
         # Using MD5 as we don't need secure hashing and speed matters
         primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
         sensor_name_prefix = f"{self.id}_{message.PGN}_{message.id}_{primary_key_prefix_hash}_"
@@ -411,7 +424,8 @@ class Hub:
                     field.unit_of_measurement,
                     f"{message.description} ({primary_key_prefix_hash[:6]})",
                     self.device_name,
-                    self.ms_between_updates
+                    self.ms_between_updates,
+                    str(message.source_iso_name)
                 )
                 self.async_add_entities([sensor])
                 self.sensors[sensor_id] = sensor
