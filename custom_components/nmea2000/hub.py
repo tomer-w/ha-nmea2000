@@ -422,7 +422,7 @@ class Hub:
                     field.name,
                     value,
                     field.unit_of_measurement,
-                    f"{message.description} ({primary_key_prefix_hash[:6]})",
+                    f"{message.description} ({message.source_iso_name.manufacturer_code} - {message.source_iso_name.device_function} - {message.source_iso_name.unique_number})",
                     self.device_name,
                     self.ms_between_updates,
                     str(message.source_iso_name)
