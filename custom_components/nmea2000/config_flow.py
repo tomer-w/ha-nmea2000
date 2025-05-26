@@ -24,7 +24,7 @@ USB_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_BAUDRATE, default=2000000): int,
         vol.Optional(CONF_PGN_INCLUDE): str,
         vol.Optional(CONF_PGN_EXCLUDE): str,
-        vol.Optional(CONF_EXCLUDE_AIS): bool,
+        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
         vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
         vol.Optional(CONF_EXPERIMENTAL): bool,
     }
@@ -36,7 +36,7 @@ TCP_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_PORT, default=8881): int,
         vol.Optional(CONF_PGN_INCLUDE): str,
         vol.Optional(CONF_PGN_EXCLUDE): str,
-        vol.Optional(CONF_EXCLUDE_AIS): bool,
+        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
         vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
         vol.Optional(CONF_EXPERIMENTAL): bool,
     }
