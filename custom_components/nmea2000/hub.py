@@ -177,6 +177,7 @@ class Hub:
                 preferred_units=preferred_units,
                 dump_to_file=dump_to_file,
                 dump_pgns=dump_pgns,
+                build_network_map = True,
             )
         elif mode == "TCP":
             ip = entry.data[CONF_IP]
@@ -198,6 +199,7 @@ class Hub:
                     preferred_units=preferred_units,
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
+                    build_network_map = True,
                 )
             elif device_type == NetwrorkDeviceType.ACTISENSE:
                 self.gateway = ActisenseNmea2000Gateway(
@@ -208,7 +210,8 @@ class Hub:
                     preferred_units=preferred_units,
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
-                )
+                    build_network_map = True,
+            )
             elif device_type == NetwrorkDeviceType.YACHT_DEVICES:
                 self.gateway = YachtDevicesNmea2000Gateway(
                     ip, 
@@ -218,6 +221,7 @@ class Hub:
                     preferred_units=preferred_units,
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
+                    build_network_map = True,
                 )
             else:
                 raise Exception(f"device_type {device_type} not supported")
@@ -354,31 +358,7 @@ class Hub:
             )
             pgn_sensor.set_state(new_value, ignore_tracing = True)
 
-        # Build primary key for the sensor
-        primary_key_prefix = ""
-        if message.source_iso_name is None:
-            if not self.experimental:
-                _LOGGER.warning(
-                    "Message source ISO name is None, skipping this message. Message: %s", 
-                    message
-                )
-                return
-            else:
-                _LOGGER.warning(
-                    "Message source ISO name is None, using source instead. Message: %s", 
-                    message
-                )
-                primary_key_prefix = str(message.source)
-        else:
-            primary_key_prefix = str(message.source_iso_name.name)
-        for field in message.fields:
-            if field.part_of_primary_key:
-                primary_key_prefix += "_" + str(field.value)
-        _LOGGER.debug("primary key prefix: %s. iso name: %s", primary_key_prefix, message.source_iso_name)
-
-        # Using MD5 as we don't need secure hashing and speed matters
-        primary_key_prefix_hash = hashlib.md5(primary_key_prefix.encode()).hexdigest()
-        sensor_name_prefix = f"{self.id}_{message.PGN}_{message.id}_{primary_key_prefix_hash}_"
+        sensor_name_prefix = f"{self.id}_{message.PGN}_{message.id}_{message.hash}_"
 
         # Process individual fields in the message
         for field in message.fields:
