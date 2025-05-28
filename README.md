@@ -1,6 +1,6 @@
 # 🚢 Home Assistant NMEA 2000 Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
 
 > Transform your boat's NMEA 2000 network into powerful Home Assistant sensors instantly!
@@ -29,17 +29,9 @@ A Home Assistant integration that brings marine data to your smart home. Automat
 
 ### 🛠 Option 1: Installation via HACS
 
-To install this integration in Home Assistant using HACS:
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tomer-w&repository=ha-nmea2000)
 
-1. Open HACS in Home Assistant.
-2. Go to **Integrations**.
-3. Click the **⋮ menu** (top right) → **Custom repositories**.
-4. Paste this repository URL:  
-   `https://github.com/tomer-w/ha-nmea2000`
-5. Set the category to **Integration** and click **Add**.
-6. Search for **NMEA 2000** in HACS and install it. Or, press the link below:  
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=tomer-w&repository=ha-nmea2000)  
-7. Restart Home Assistant when prompted.  
+Restart Home Assistant when prompted.  
 
 ### 🛠 Option 2: Manual Installation
 
@@ -53,7 +45,7 @@ To install this integration in Home Assistant using HACS:
    ```
 3. Restart Home Assistant.
 
-### 🛠 Add the integration
+## 🛠 Add the integration
 1. Go to Settings → Devices & Services → + Add Integration and search for NMEA 2000. Or, press the link below:  
 [![Open your Home Assistant instance and show an integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=nmea2000)
 2. Click the **ADD HUB** button
@@ -65,3 +57,4 @@ To install this integration in Home Assistant using HACS:
 
 - This library leverages the [canboat](https://github.com/canboat/canboat) via [nmea2000](https://github.com/tomer-w/nmea2000) as the source for all PGN data.
 - Special thanks to Rob from [Smart Boat Innovations](https://github.com/SmartBoatInnovations/). His code was the initial inspiration for this project. Some the code here might still be based on his latest OSS version.
+ - To all the incredible contributors to the [canboat](https://github.com/canboat/canboat) project — your relentless innovation keeps the lights on. Without your continuous hacking, we'd be adrift in the dark. Thank you!
