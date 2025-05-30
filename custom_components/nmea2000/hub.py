@@ -386,9 +386,6 @@ class Hub:
             # Construct unique sensor name
             sensor_id = sensor_name_prefix + field.id
             
-            # Use the field value if available, otherwise use raw value
-            value = field.value if field.value is not None else field.raw_value
-            
             # Check for sensor existence and create/update accordingly
             sensor = self.sensors.get(sensor_id)
             if sensor is None:
@@ -398,7 +395,7 @@ class Hub:
                 sensor = NMEA2000Sensor(
                     id=sensor_id,
                     friendly_name=field.name,
-                    initial_state=value,
+                    initial_state=field.value,
                     unit_of_measurement=field.unit_of_measurement,
                     device_name=f"{message.description} ({message.source_iso_name.manufacturer_code} - {message.source_iso_name.device_function} - {message.source_iso_name.unique_number})" if message.source_iso_name is not None else f"{message.description}",
                     via_device=self.device_name,
@@ -413,9 +410,9 @@ class Hub:
                 _LOGGER.debug(
                     "Updating existing sensor %s with new value: %s",
                     sensor.name,
-                    value,
+                    field.value,
                 )
-                sensor.set_state(value)
+                sensor.set_state(field.value)
         
 
     async def start(self) -> None:
