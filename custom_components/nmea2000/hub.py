@@ -6,6 +6,7 @@ and creates/updates Home Assistant sensors based on received data.
 """
 
 from __future__ import annotations
+from datetime import timedelta
 import logging
 import asyncio
 import hashlib
@@ -88,7 +89,7 @@ class Hub:
         # Retrieve configuration from entry
         self.name = entry.data[CONF_NAME]
         self.id = self.name.lower().replace(" ", "_")
-        self.ms_between_updates = entry.data[CONF_MS_BETWEEN_UPDATES]
+        self.time_between_updates = timedelta(milliseconds=entry.data.get(CONF_MS_BETWEEN_UPDATES, 5000))
         mode = entry.data[CONF_MODE]
         self.device_name = f"NMEA 2000 {mode} Gateway"
         self.experimental = entry.data.get(CONF_EXPERIMENTAL)
@@ -106,11 +107,13 @@ class Hub:
 
         dump_to_file = None
         dump_pgns = []
+        build_network_map = True
         #Exclude other PGNs that are not needed for the sensor.
         if not self.experimental:
             # We dont want to create sensors for ISO claim messages. We also dont want PGNs which we dont know yet.
             pgn_exclude.extend([60928, "0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed"])
         else:
+            build_network_map = False
             pass
             # Dump settings
             #dump_to_file = "./dump/dump.jsonl"
@@ -135,29 +138,25 @@ class Hub:
 
         # Create system sensors
         self.state_sensor = NMEA2000Sensor(
-            self.id+"_state", 
-            "State", 
-            self.state, 
-            None, 
-            self.device_name, 
-            None
+            id=self.id+"_state", 
+            friendly_name="State", 
+            initial_state=self.state, 
+            device_name=self.device_name, 
         )
         self.total_messages_sensor = NMEA2000Sensor(
-            self.id+"_total_messages", 
-            "Total message count", 
-            0, 
-            "messages", 
-            self.device_name, 
-            None,
-            self.ms_between_updates
+            id=self.id+"_total_messages", 
+            friendly_name="Total message count", 
+            initial_state=0, 
+            unit_of_measurement="messages", 
+            device_name=self.device_name,
+            update_frequncy=self.time_between_updates,
         )
         self.msg_per_minute_sensor = NMEA2000Sensor(
-            self.id+"_messages_per_minute", 
-            "Messages per minute", 
-            0, 
-            "msg/min", 
-            self.device_name, 
-            None
+            id=self.id+"_messages_per_minute", 
+            friendly_name="Messages per minute", 
+            initial_state=0, 
+            unit_of_measurement="msg/min", 
+            device_name=self.device_name,
         )
 
         # Configure the appropriate gateway based on mode
@@ -171,13 +170,13 @@ class Hub:
                 baudrate,
             )
             self.gateway = WaveShareNmea2000Gateway(
-                serial_port, 
+                port=serial_port, 
                 exclude_pgns=pgn_exclude, 
                 include_pgns=pgn_include,
                 preferred_units=preferred_units,
                 dump_to_file=dump_to_file,
                 dump_pgns=dump_pgns,
-                build_network_map = True,
+                build_network_map = build_network_map,
             )
         elif mode == "TCP":
             ip = entry.data[CONF_IP]
@@ -192,36 +191,36 @@ class Hub:
             )
             if device_type == NetwrorkDeviceType.EBYTE:
                 self.gateway = EByteNmea2000Gateway(
-                    ip, 
-                    port, 
+                    host=ip, 
+                    port=port, 
                     exclude_pgns=pgn_exclude, 
                     include_pgns=pgn_include,
                     preferred_units=preferred_units,
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
-                    build_network_map = True,
+                    build_network_map = build_network_map,
                 )
             elif device_type == NetwrorkDeviceType.ACTISENSE:
                 self.gateway = ActisenseNmea2000Gateway(
-                    ip, 
-                    port, 
+                    host=ip, 
+                    port=port, 
                     exclude_pgns=pgn_exclude, 
                     include_pgns=pgn_include,
                     preferred_units=preferred_units,
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
-                    build_network_map = True,
+                    build_network_map = build_network_map,
             )
             elif device_type == NetwrorkDeviceType.YACHT_DEVICES:
                 self.gateway = YachtDevicesNmea2000Gateway(
-                    ip, 
-                    port, 
+                    host=ip, 
+                    port=port, 
                     exclude_pgns=pgn_exclude, 
                     include_pgns=pgn_include,
                     preferred_units=preferred_units,
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
-                    build_network_map = True,
+                    build_network_map = build_network_map,
                 )
             else:
                 raise Exception(f"device_type {device_type} not supported")
@@ -338,13 +337,12 @@ class Hub:
         if pgn_sensor is None:
             _LOGGER.info("Creating new sensor for PGN %d", message.PGN)
             sensor = NMEA2000Sensor(
-                self.id + "_" + message.id,
-                f"PGN {message.PGN} message count",
-                1,
-                "count",
-                self.device_name,
-                None,
-                self.ms_between_updates
+                id=self.id + "_" + message.id,
+                friendly_name=f"PGN {message.PGN} message count",
+                initial_state=1,
+                unit_of_measurement="count",
+                device_name=self.device_name,
+                update_frequncy=self.time_between_updates,
             )
             self.async_add_entities([sensor])
             self.sensors[message.id] = sensor
@@ -398,14 +396,15 @@ class Hub:
 
                 # Create new sensor
                 sensor = NMEA2000Sensor(
-                    sensor_id,
-                    field.name,
-                    value,
-                    field.unit_of_measurement,
-                    f"{message.description} ({message.source_iso_name.manufacturer_code} - {message.source_iso_name.device_function} - {message.source_iso_name.unique_number})",
-                    self.device_name,
-                    self.ms_between_updates,
-                    str(message.source_iso_name)
+                    id=sensor_id,
+                    friendly_name=field.name,
+                    initial_state=value,
+                    unit_of_measurement=field.unit_of_measurement,
+                    device_name=f"{message.description} ({message.source_iso_name.manufacturer_code} - {message.source_iso_name.device_function} - {message.source_iso_name.unique_number})" if message.source_iso_name is not None else f"{message.description}",
+                    via_device=self.device_name,
+                    update_frequncy=self.time_between_updates,
+                    ttl=message.ttl,
+                    manufacturer=str(message.source_iso_name)
                 )
                 self.async_add_entities([sensor])
                 self.sensors[sensor_id] = sensor
