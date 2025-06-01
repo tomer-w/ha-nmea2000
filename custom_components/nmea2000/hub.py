@@ -111,7 +111,7 @@ class Hub:
         #Exclude other PGNs that are not needed for the sensor.
         if not self.experimental:
             # We dont want to create sensors for ISO claim messages. We also dont want PGNs which we dont know yet.
-            pgn_exclude.extend([60928, "0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed"])
+            pgn_exclude.extend([60928, "0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed", "victronBatteryRegister"])
         else:
             build_network_map = False
             pass

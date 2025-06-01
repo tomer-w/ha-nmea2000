@@ -13,5 +13,5 @@
   "requirements": [
     "nmea2000==2025.5.18"
   ],
-  "version": "2025.5.18"
+  "version": "2025.5.19"
 }
