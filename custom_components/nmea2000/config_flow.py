@@ -168,7 +168,7 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if CONF_PGN_INCLUDE in user_input and CONF_PGN_EXCLUDE in user_input:
                 errors[CONF_PGN_EXCLUDE] = "include_exclude_only_one"
 
-            if len(user_input[CONF_MANUFACTURER_CODES_INCLUDE]) != 0 and len(user_input[CONF_MANUFACTURER_CODES_EXCLUDE]) != 0:
+            if (CONF_MANUFACTURER_CODES_INCLUDE in user_input and len(user_input[CONF_MANUFACTURER_CODES_INCLUDE]) != 0) and (CONF_MANUFACTURER_CODES_EXCLUDE in user_input and len(user_input[CONF_MANUFACTURER_CODES_EXCLUDE]) != 0):
                 errors[CONF_MANUFACTURER_CODES_EXCLUDE] = "include_exclude_only_one"
 
             if len(errors) == 0:
@@ -222,7 +222,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             if CONF_PGN_INCLUDE in user_input and CONF_PGN_EXCLUDE in user_input:
                 errors[CONF_PGN_EXCLUDE] = "include_exclude_only_one"
 
-            if len(user_input[CONF_MANUFACTURER_CODES_INCLUDE]) != 0 and len(user_input[CONF_MANUFACTURER_CODES_EXCLUDE]) != 0:
+            if (CONF_MANUFACTURER_CODES_INCLUDE in user_input and len(user_input[CONF_MANUFACTURER_CODES_INCLUDE]) != 0) and (CONF_MANUFACTURER_CODES_EXCLUDE in user_input and len(user_input[CONF_MANUFACTURER_CODES_EXCLUDE]) != 0):
                 errors[CONF_MANUFACTURER_CODES_EXCLUDE] = "include_exclude_only_one"
 
             if len(errors) == 0:
