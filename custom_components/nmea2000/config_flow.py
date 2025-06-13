@@ -2,21 +2,55 @@ from enum import Enum
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
-from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
 from homeassistant.const import CONF_NAME
-# from homeassistant.exceptions import HomeAssistantError
-
-from .const import CONF_DEVICE_TYPE, CONF_EXPERIMENTAL, DOMAIN, CONF_PGN_INCLUDE, CONF_PGN_EXCLUDE, CONF_PORT, CONF_IP, CONF_BAUDRATE, CONF_MODE, CONF_SERIAL_PORT, CONF_MODE_TCP, CONF_MODE_USB, CONF_MS_BETWEEN_UPDATES, CONF_EXCLUDE_AIS
 import logging
+import homeassistant.helpers.config_validation as cv
+
+from .const import (
+    CONF_DEVICE_TYPE,
+    CONF_EXPERIMENTAL,
+    CONF_MANUFACTURER_CODES_EXCLUDE,
+    CONF_MANUFACTURER_CODES_INCLUDE,
+    DOMAIN,
+    CONF_PGN_INCLUDE,
+    CONF_PGN_EXCLUDE,
+    CONF_PORT,
+    CONF_IP,
+    CONF_BAUDRATE,
+    CONF_MODE,
+    CONF_SERIAL_PORT,
+    CONF_MODE_TCP,
+    CONF_MODE_USB,
+    CONF_MS_BETWEEN_UPDATES,
+    CONF_EXCLUDE_AIS,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
-class NetwrorkDeviceType(Enum):
+MANUFACTURER_CODES = [
+    {"value": "b_and_g", "label": "B & G"},
+    {"value": "garmin", "label": "Garmin"},
+    {"value": "mastervolt", "label": "Mastervolt"},
+    {"value": "victron", "label": "Victron Energy"}
+]
+
+class NetworkDeviceType(Enum):
     """Enum for device types."""
     EBYTE = "EBYTE"
     ACTISENSE = "Actisense"
     YACHT_DEVICES = "Yacht Devices"
-    
+
+def get_manufacturer_selector(name: str) -> SelectSelector:
+    """Create a manufacturer selector."""
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=MANUFACTURER_CODES,
+            mode=SelectSelectorMode.DROPDOWN,
+            multiple=True,
+            translation_key=name,
+        )
+    )
 
 USB_DATA_SCHEMA = vol.Schema(
     {
@@ -24,20 +58,27 @@ USB_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_BAUDRATE, default=2000000): int,
         vol.Optional(CONF_PGN_INCLUDE): str,
         vol.Optional(CONF_PGN_EXCLUDE): str,
-        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
         vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
+        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
+        vol.Optional(CONF_MANUFACTURER_CODES_INCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_INCLUDE),
+        vol.Optional(CONF_MANUFACTURER_CODES_EXCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_EXCLUDE),
         vol.Optional(CONF_EXPERIMENTAL): bool,
     }
 )
+
 TCP_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_DEVICE_TYPE, default=NetwrorkDeviceType.EBYTE): vol.In([e.value for e in NetwrorkDeviceType]),
+        vol.Required(CONF_DEVICE_TYPE, default=NetworkDeviceType.EBYTE.value): vol.In(
+            [e.value for e in NetworkDeviceType]
+        ),
         vol.Required(CONF_IP, default="192.168.0.46"): str,
         vol.Required(CONF_PORT, default=8881): int,
         vol.Optional(CONF_PGN_INCLUDE): str,
         vol.Optional(CONF_PGN_EXCLUDE): str,
-        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
         vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
+        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
+        vol.Optional(CONF_MANUFACTURER_CODES_INCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_INCLUDE),
+        vol.Optional(CONF_MANUFACTURER_CODES_EXCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_EXCLUDE),
         vol.Optional(CONF_EXPERIMENTAL): bool,
     }
 )
@@ -127,6 +168,9 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if CONF_PGN_INCLUDE in user_input and CONF_PGN_EXCLUDE in user_input:
                 errors[CONF_PGN_EXCLUDE] = "include_exclude_only_one"
 
+            if len(user_input[CONF_MANUFACTURER_CODES_INCLUDE]) != 0 and len(user_input[CONF_MANUFACTURER_CODES_EXCLUDE]) != 0:
+                errors[CONF_MANUFACTURER_CODES_EXCLUDE] = "include_exclude_only_one"
+
             if len(errors) == 0:
                 new_data = self.data | user_input
                 _LOGGER.debug("No errors. Storing data: %s", new_data)
@@ -177,6 +221,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             if CONF_PGN_INCLUDE in user_input and CONF_PGN_EXCLUDE in user_input:
                 errors[CONF_PGN_EXCLUDE] = "include_exclude_only_one"
+
+            if len(user_input[CONF_MANUFACTURER_CODES_INCLUDE]) != 0 and len(user_input[CONF_MANUFACTURER_CODES_EXCLUDE]) != 0:
+                errors[CONF_MANUFACTURER_CODES_EXCLUDE] = "include_exclude_only_one"
 
             if len(errors) == 0:
                 new_data = user_input

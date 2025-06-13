@@ -19,6 +19,8 @@ from .const import (
     CONF_DEVICE_TYPE,
     CONF_EXCLUDE_AIS,
     CONF_EXPERIMENTAL,
+    CONF_MANUFACTURER_CODES_EXCLUDE,
+    CONF_MANUFACTURER_CODES_INCLUDE,
     CONF_MODE,
     CONF_PGN_INCLUDE,
     CONF_PGN_EXCLUDE,
@@ -29,7 +31,7 @@ from .const import (
     CONF_PORT,
     CONF_MS_BETWEEN_UPDATES,
 )
-from .config_flow import NetwrorkDeviceType, parse_and_validate_comma_separated_integers
+from .config_flow import NetworkDeviceType, parse_and_validate_comma_separated_integers
 from .NMEA2000Sensor import NMEA2000Sensor
 
 # Home Assistant imports
@@ -122,18 +124,22 @@ class Hub:
         # remove duplicates
         pgn_include = list(set(pgn_include))
         pgn_exclude = list(set(pgn_exclude))
+        include_manufacturer_code = entry.data.get(CONF_MANUFACTURER_CODES_INCLUDE, [])
+        exclude_manufacturer_code = entry.data.get(CONF_MANUFACTURER_CODES_EXCLUDE, [])
 
-        preferred_units = {PhysicalQuantities.TEMPERATURE:"C", PhysicalQuantities.ANGLE:"deg"}
+        preferred_units = {PhysicalQuantities.TEMPERATURE:"C", PhysicalQuantities.ANGLE:"deg", PhysicalQuantities.SPEED:"kts"}
 
         _LOGGER.info(
-            "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s, preferred_units: %s, dump_to_file: %s, dump_pgns: %s",
+            "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s, preferred_units: %s, dump_to_file: %s, dump_pgns: %s, include_manufacturer_code: %s, exclude_manufacturer_code: %s",
             self.name,
             mode,
             pgn_include,
             pgn_exclude,
             preferred_units,
             dump_to_file,
-            dump_pgns
+            dump_pgns,
+            include_manufacturer_code,
+            exclude_manufacturer_code,
         )
 
         # Create system sensors
@@ -177,11 +183,13 @@ class Hub:
                 dump_to_file=dump_to_file,
                 dump_pgns=dump_pgns,
                 build_network_map = build_network_map,
+                include_manufacturer_code = include_manufacturer_code,
+                exclude_manufacturer_code = exclude_manufacturer_code,
             )
         elif mode == "TCP":
             ip = entry.data[CONF_IP]
             port = entry.data[CONF_PORT]
-            device_type = NetwrorkDeviceType(entry.data[CONF_DEVICE_TYPE])
+            device_type = NetworkDeviceType(entry.data[CONF_DEVICE_TYPE])
             _LOGGER.info(
                 "TCP sensor with name: %s, IP: %s, port: %s, device_type: %s", 
                 self.name, 
@@ -189,7 +197,7 @@ class Hub:
                 port,
                 device_type
             )
-            if device_type == NetwrorkDeviceType.EBYTE:
+            if device_type == NetworkDeviceType.EBYTE:
                 self.gateway = EByteNmea2000Gateway(
                     host=ip, 
                     port=port, 
@@ -199,8 +207,10 @@ class Hub:
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
                     build_network_map = build_network_map,
+                    include_manufacturer_code = include_manufacturer_code,
+                    exclude_manufacturer_code = exclude_manufacturer_code,
                 )
-            elif device_type == NetwrorkDeviceType.ACTISENSE:
+            elif device_type == NetworkDeviceType.ACTISENSE:
                 self.gateway = ActisenseNmea2000Gateway(
                     host=ip, 
                     port=port, 
@@ -210,8 +220,10 @@ class Hub:
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
                     build_network_map = build_network_map,
+                    include_manufacturer_code = include_manufacturer_code,
+                    exclude_manufacturer_code = exclude_manufacturer_code,
             )
-            elif device_type == NetwrorkDeviceType.YACHT_DEVICES:
+            elif device_type == NetworkDeviceType.YACHT_DEVICES:
                 self.gateway = YachtDevicesNmea2000Gateway(
                     host=ip, 
                     port=port, 
@@ -221,6 +233,8 @@ class Hub:
                     dump_to_file=dump_to_file,
                     dump_pgns=dump_pgns,
                     build_network_map = build_network_map,
+                    include_manufacturer_code = include_manufacturer_code,
+                    exclude_manufacturer_code = exclude_manufacturer_code,
                 )
             else:
                 raise Exception(f"device_type {device_type} not supported")
