@@ -103,18 +103,22 @@ class Hub:
         pgn_exclude = parse_and_validate_comma_separated_integers(
             entry.data.get(CONF_PGN_EXCLUDE, "")
         )
-        # remove the AIS PGNs if needed.
-        if entry.data.get(CONF_EXCLUDE_AIS):
-            pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842, 129793, 129797])
 
         dump_to_file = None
         dump_pgns = []
         build_network_map = True
-        #Exclude other PGNs that are not needed for the sensor.
-        if not self.experimental:
-            # We dont want to create sensors for ISO claim messages. We also dont want PGNs which we dont know yet.
-            pgn_exclude.extend([60928, "0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed", "victronBatteryRegister"])
-        else:
+
+        if len(pgn_include) == 0:
+            # remove the AIS PGNs if needed.
+            if entry.data.get(CONF_EXCLUDE_AIS):
+                pgn_exclude.extend([129038, 129039, 129040, 129794, 129807, 129809, 129810, 130842, 130842, 129793, 129797])
+
+            #Exclude other PGNs that are not needed for the sensor.
+            if not self.experimental:
+                # We dont want to create sensors for ISO claim messages. We also dont want PGNs which we dont know yet.
+                pgn_exclude.extend([60928, "0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed", "victronBatteryRegister"])
+
+        if self.experimental:
             build_network_map = False
             pass
             # Dump settings
