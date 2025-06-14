@@ -411,7 +411,7 @@ class Hub:
                     friendly_name=field.name,
                     initial_state=field.value,
                     unit_of_measurement=field.unit_of_measurement,
-                    device_name=f"{message.description} ({message.source_iso_name.manufacturer_code} - {message.source_iso_name.device_function} - {message.source_iso_name.unique_number})" if message.source_iso_name is not None else f"{message.description}",
+                    device_name=f"{message.description} ({message.source_iso_name.manufacturer_code} - {message.source_iso_name.device_function} - {message.source_iso_name.unique_number}) (PK: {message.hash})" if message.source_iso_name is not None else f"{message.description} (PK: {message.hash})",
                     via_device=self.device_name,
                     update_frequncy=self.time_between_updates,
                     ttl=message.ttl,

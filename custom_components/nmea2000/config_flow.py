@@ -5,7 +5,6 @@ from homeassistant.core import callback
 from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
 from homeassistant.const import CONF_NAME
 import logging
-import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_DEVICE_TYPE,
@@ -28,11 +27,10 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+MANUFACTURER_CODES_LIST = ["B & G", "Garmin", "Mastervolt", "Victron Energy"]
 MANUFACTURER_CODES = [
-    {"value": "b_and_g", "label": "B & G"},
-    {"value": "garmin", "label": "Garmin"},
-    {"value": "mastervolt", "label": "Mastervolt"},
-    {"value": "victron", "label": "Victron Energy"}
+    {"value": name, "label": name}
+    for name in MANUFACTURER_CODES_LIST
 ]
 
 class NetworkDeviceType(Enum):
