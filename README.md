@@ -53,6 +53,28 @@ Restart Home Assistant when prompted.
 4. Based on the gateway type choose how to connect to it (USB port or TCP IP and port)
 2. **Customize**: Choose what PGNs to monitor and in what cadance you want the updates
 
+### 🛠 Script-Based Update (For Limited Bandwidth Environments)
+If you prefer not to use HACS due to bandwidth constraints, especially in marine environments, you can use the provided update script to manually update the integration after it was installed for the first time.
+
+1. Open the HA Terminal window.
+2. For the first time only, you need to give the script execution permissions:
+   ```bash
+   chmod +x /config/custom_components/nmea2000/update_integration.sh
+   ```
+2. Run the script using a terminal:
+   ```bash
+   /config/custom_components/nmea2000/update_integration.sh
+   ```
+3. Optionally, use the `--restart` flag to restart Home Assistant after the update:
+   ```bash
+   /config/custom_components/nmea2000/update_integration.sh --restart
+   ```
+   This will validate the Home Assistant configuration and issue a restart command if the configuration is valid.
+
+4. Restart Home Assistant manually if you did not use the `--restart` flag.
+
+This script will fetch the latest version of the integration directly from the repository and replace the existing files.
+
 # Acknowledgements
 
 - This library leverages the [canboat](https://github.com/canboat/canboat) via [nmea2000](https://github.com/tomer-w/nmea2000) as the source for all PGN data.
