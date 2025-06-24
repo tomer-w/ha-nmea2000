@@ -35,7 +35,9 @@ class NMEA2000Sensor(SensorEntity):
         self._attr_name = friendly_name
         self._device_name = device_name
         self._attr_native_value = initial_state
-        self._attr_native_unit_of_measurement = unit_of_measurement
+        if initial_state is int or initial_state is float: # HA will take units only for numerical data
+            self._attr_native_unit_of_measurement = unit_of_measurement
+            self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._device_name)},
             manufacturer=manufacturer if manufacturer is not None else "NMEA 2000",
@@ -45,10 +47,11 @@ class NMEA2000Sensor(SensorEntity):
         self._last_updated = self._last_seen = datetime.now()
         self.update_frequncy = DEFAULT_UPDATE_INTERVAL if update_frequncy is None else update_frequncy
         self.ttl = INFINITE_DURATION if ttl is None else ttl*UNAVAILABLE_FACTOR
+        self._ready = False
             
         if initial_state is None or initial_state == "":
             self._available = False
-            _LOGGER.info("Creating sensor: '%s' as unavailable", self._attr_name)
+            _LOGGER.info("Creating sensor: '%s' as unavailable", self.entity_id)
         else:
             self._available = True
 
@@ -70,15 +73,23 @@ class NMEA2000Sensor(SensorEntity):
     def update_availability(self):
         """Update the availability status of the sensor."""
         
+        if not self._ready:
+            _LOGGER.warning("skipping update_availability as not ready. sensor: %s", self.entity_id)
+            return
+
         new_availability = (datetime.now() - self._last_seen) < self.ttl
 
         if self._available != new_availability:
-            _LOGGER.warning("Setting sensor:'%s' as unavailable", self._attr_name)
+            _LOGGER.warning("Setting sensor:'%s' as unavailable", self.entity_id)
             self._available = new_availability
             self.async_schedule_update_ha_state()
 
     def set_state(self, new_state, ignore_tracing = False):
         """Set the state of the sensor."""
+        if not self._ready:
+            _LOGGER.warning("skipping set_state as not ready. sensor: %s", self.entity_id)
+            return
+
         should_update = False
         now = datetime.now()
         old_state = self._attr_native_value
@@ -89,19 +100,31 @@ class NMEA2000Sensor(SensorEntity):
             self._available = True
             should_update = True
             if not ignore_tracing:
-                _LOGGER.info("Setting sensor:'%s' as available", self._attr_name)
+                _LOGGER.info("Setting sensor:'%s' as available", self.entity_id)
 
         if (not should_update) and (now - self._last_updated) < self.update_frequncy:
             # If the update frequency is not met, bail out without any changes
-            _LOGGER.debug("Skipping update for sensor:'%s' as of update frequency", self._attr_name)
+            _LOGGER.debug("Skipping update for sensor:'%s' as of update frequency", self.entity_id)
             return
         
         if new_state != old_state:
             # Since the state is valid, update the sensor's state
             if not ignore_tracing:
-                _LOGGER.info("Setting state for sensor: '%s' to %s", self._attr_name, new_state)
+                _LOGGER.info("Setting state for sensor: '%s' to %s", self.entity_id, new_state)
             should_update = True
 
         if should_update:
             self._last_updated = now
             self.async_schedule_update_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        """Called when entity is added to Home Assistant."""
+        # Now self.hass is available!
+        _LOGGER.info("async_added_to_hass called on: %s", self.entity_id)
+        await super().async_added_to_hass()
+        self._ready = True
+
+    async def async_will_remove_from_hass(self):
+        _LOGGER.info("async_will_remove_from_hass called on: %s", self.entity_id)
+        await super().async_will_remove_from_hass()
+        self._ready = False

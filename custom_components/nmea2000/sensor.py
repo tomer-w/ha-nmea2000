@@ -22,5 +22,3 @@ async def async_setup_entry(
 
     hub = entry.runtime_data
     await hub.register_async_add_entities(async_add_entities)
-
-    return True
