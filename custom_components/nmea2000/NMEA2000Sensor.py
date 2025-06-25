@@ -8,7 +8,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_UPDATE_INTERVAL = timedelta(minutes=5)
 INFINITE_DURATION = timedelta(days=10**6)
-UNAVAILABLE_FACTOR = 3
+UNAVAILABLE_FACTOR = 10
 
 # SmartSensor class representing a basic sensor entity with state
 class NMEA2000Sensor(SensorEntity):
@@ -49,7 +49,7 @@ class NMEA2000Sensor(SensorEntity):
         self.ttl = INFINITE_DURATION if ttl is None else ttl*UNAVAILABLE_FACTOR
         self._ready = False
             
-        if initial_state is None or initial_state == "":
+        if initial_state is None:
             self._available = False
             _LOGGER.info("Creating sensor: '%s' as unavailable", self.entity_id)
         else:
@@ -77,10 +77,11 @@ class NMEA2000Sensor(SensorEntity):
             _LOGGER.warning("skipping update_availability as not ready. sensor: %s", self.entity_id)
             return
 
-        new_availability = (datetime.now() - self._last_seen) < self.ttl
+        availability_delta = datetime.now() - self._last_seen
+        new_availability = availability_delta < self.ttl
 
         if self._available != new_availability:
-            _LOGGER.warning("Setting sensor:'%s' as unavailable", self.entity_id)
+            _LOGGER.warning("Setting sensor:'%s' as unavailable. Didnt see a message for %s", self.entity_id, availability_delta)
             self._available = new_availability
             self.async_schedule_update_ha_state()
 
