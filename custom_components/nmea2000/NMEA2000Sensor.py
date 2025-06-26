@@ -19,7 +19,7 @@ class NMEA2000Sensor(SensorEntity):
         self,
         id: str,
         friendly_name: str,
-        initial_state,
+        initial_state: str | int | float,
         unit_of_measurement: str | None = None,
         device_name: str | None = None,
         via_device: str | None = None,
@@ -28,14 +28,15 @@ class NMEA2000Sensor(SensorEntity):
         manufacturer: str | None = None
     ) -> None:
         """Initialize the sensor."""
-        _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s, unit_of_measurement=%s, device_name=%s, via_device=%s, update_frequncy=%s, ttl=%s",
-                      id, friendly_name, initial_state, unit_of_measurement, device_name, via_device, update_frequncy, ttl)
+        need_state_class = isinstance(initial_state, (int, float))
+        _LOGGER.info("Initializing NMEA2000Sensor: name=%s, friendly_name=%s, initial_state: %s (%s), unit_of_measurement=%s, device_name=%s, via_device=%s, update_frequncy=%s, ttl=%s, need_state_class=%s",
+                      id, friendly_name, initial_state, type(initial_state), unit_of_measurement, device_name, via_device, update_frequncy, ttl, need_state_class)
         self._attr_unique_id = id.lower().replace(" ", "_")
         self.entity_id = f"sensor.{self._attr_unique_id}"
         self._attr_name = friendly_name
         self._device_name = device_name
         self._attr_native_value = initial_state
-        if initial_state is int or initial_state is float: # HA will take units only for numerical data
+        if need_state_class: # HA will take units only for numerical data
             self._attr_native_unit_of_measurement = unit_of_measurement
             self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_device_info = DeviceInfo(
