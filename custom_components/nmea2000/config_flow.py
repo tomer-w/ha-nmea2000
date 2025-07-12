@@ -25,12 +25,13 @@ from .const import (
     CONF_EXCLUDE_AIS,
 )
 
+from nmea2000 import ManufacturerCodes
+
 _LOGGER = logging.getLogger(__name__)
 
-MANUFACTURER_CODES_LIST = ["B & G", "Garmin", "Mastervolt", "Victron Energy"]
 MANUFACTURER_CODES = [
     {"value": name, "label": name}
-    for name in MANUFACTURER_CODES_LIST
+    for name in ManufacturerCodes
 ]
 
 class NetworkDeviceType(Enum):

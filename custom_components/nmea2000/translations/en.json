@@ -26,7 +26,9 @@
           "exclude_AIS": "Exclude all AIS PGNs (those keep generating new targets)",
           "ms_between_updates": "Number of milliseconds between updates (0=Update always)",
           "device_type": "TCP Device Type",
-          "experimental": "Experimental features"
+          "experimental": "Experimental features",
+          "manufacturer_codes_include": "Manufacturers to include",
+          "manufacturer_codes_exclude": "Manufacturers to exclude"
         }
       },
       "success": {
@@ -53,7 +55,9 @@
           "exclude_AIS": "Exclude all AIS PGNs (those keep generating new targets)",
           "ms_between_updates": "Number of milliseconds between updates (0=Update always)",
           "device_type": "TCP Device Type",
-          "experimental": "Experimental features"
+          "experimental": "Experimental features",
+          "manufacturer_codes_include": "Manufacturers to include",
+          "manufacturer_codes_exclude": "Manufacturers to exclude"
         }
       }
     }
