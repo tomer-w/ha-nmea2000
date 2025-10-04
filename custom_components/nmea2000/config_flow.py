@@ -233,6 +233,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 self.hass.config_entries.async_update_entry(
                     self.config_entry, data=new_data
                 )
+                # Reload the entry to apply the new options
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
 
                 _LOGGER.debug("data updated with user input. New data: %s", user_input)
                 return self.async_create_entry(title="", data=None)

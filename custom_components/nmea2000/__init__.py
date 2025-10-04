@@ -15,7 +15,7 @@ _NMEA2000_LOGGER = logging.getLogger("nmea2000")
 
 async def _update_listener(hass: HomeAssistant, entry: ConfigEntry):
     """Handle options update."""
-    _LOGGER.debug("Options for NMEA2000 have been updated - applying changes")
+    _LOGGER.info("Options for NMEA2000 have been updated - applying changes")
     # Reload the integration to apply changes
     await hass.config_entries.async_reload(entry.entry_id)
 
@@ -35,12 +35,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the NMEA2000 integration."""
     version = getattr(hass.data["integrations"][DOMAIN], "version", 0)
     nmea2000_version = await _get_package_version("nmea2000")
-    _LOGGER.debug("Setting up NMEA2000 integration. Version: %s. NMEA 2000 package version: %s", version, nmea2000_version)
+    _LOGGER.info("Setting up NMEA2000 integration. Version: %s. NMEA 2000 package version: %s", version, nmea2000_version)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    _LOGGER.debug("Setting up NMEA2000 integration entry: %s", entry.as_dict())
+    _LOGGER.info("Setting up NMEA2000 integration entry: %s", entry.as_dict())
     _sync_library_logging()
 
     hub = Hub(hass, entry)
@@ -49,7 +49,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register the update listener
     entry.async_on_unload(entry.add_update_listener(_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
+    # Callback is now registered, so we can now start the hub
+    await hub.start()
     return True
 
 

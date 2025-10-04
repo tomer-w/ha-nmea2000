@@ -119,11 +119,11 @@ class Hub:
                 pgn_exclude.extend([60928, "0x1ef00ManufacturerProprietaryFastPacketAddressed", "0xef00ManufacturerProprietarySingleFrameAddressed", "victronBatteryRegister"])
 
         if self.experimental:
-            build_network_map = False
-            pass
+            #build_network_map = False
+            #pass
             # Dump settings
-            #dump_to_file = "./dump/dump.jsonl"
-            #dump_pgns = [60928]
+            dump_to_file = "./dump/dump.jsonl"
+            dump_pgns = [129025]
 
         # remove duplicates
         pgn_include = list(set(pgn_include))
@@ -267,7 +267,6 @@ class Hub:
             self.total_messages_sensor, 
             self.msg_per_minute_sensor
         ])
-        await self.start()
 
     async def update_tasks(self) -> None:
         """
