@@ -56,6 +56,12 @@ class NMEA2000Sensor(SensorEntity):
         else:
             self._available = True
 
+    def __str__(self) -> str:
+        return f"NMEA2000Sensor(name={self._attr_name}, state={self._attr_native_value}, unit={self._attr_native_unit_of_measurement}, device={self._device_name}, via_device={self._via_device}, manufacturer={self._manufacturer}, friendly_name={self._attr_friendly_name}, )"
+
+    def __repr__(self) -> str:
+        return self.__str__()
+
     @property
     def native_value(self):
         """Return the state of the sensor."""
@@ -112,7 +118,7 @@ class NMEA2000Sensor(SensorEntity):
         if new_state != old_state:
             # Since the state is valid, update the sensor's state
             if not ignore_tracing:
-                _LOGGER.info("Setting state for sensor: '%s' to %s", self.entity_id, new_state)
+                _LOGGER.debug("Setting state for sensor: '%s' to %s from %s", self.entity_id, new_state, old_state)
             should_update = True
 
         if should_update:

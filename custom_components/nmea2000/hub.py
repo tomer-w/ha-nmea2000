@@ -406,8 +406,6 @@ class Hub:
             # Check for sensor existence and create/update accordingly
             sensor = self.sensors.get(sensor_id)
             if sensor is None:
-                _LOGGER.info("Creating new sensor for %s", sensor_id)
-
                 # Create new sensor
                 sensor = NMEA2000Sensor(
                     id=sensor_id,
@@ -420,6 +418,8 @@ class Hub:
                     ttl=message.ttl,
                     manufacturer=str(message.source_iso_name)
                 )
+                _LOGGER.info("Created new sensor for %s: %s, source: %s, destination: %s, source_iso_name: %s, hash: %s, fields: %s", sensor_id, sensor, message.source, message.destination, message.source_iso_name, message.hash, field)
+
                 self.async_add_entities([sensor])
                 self.sensors[sensor_id] = sensor
             else:
