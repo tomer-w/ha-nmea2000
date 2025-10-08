@@ -57,7 +57,7 @@ class NMEA2000Sensor(SensorEntity):
             self._available = True
 
     def __str__(self) -> str:
-        return f"NMEA2000Sensor(name={self._attr_name}, state={self._attr_native_value}, unit={self._attr_native_unit_of_measurement}, device={self._device_name}, via_device={self._via_device}, manufacturer={self._manufacturer}, friendly_name={self._attr_friendly_name}, )"
+        return f"NMEA2000Sensor(name={self._attr_name}, state={self._attr_native_value}, unit={getattr(self, '_attr_native_unit_of_measurement', None)}, device={self._device_name}, attr_device_info={self._attr_device_info})"
 
     def __repr__(self) -> str:
         return self.__str__()
