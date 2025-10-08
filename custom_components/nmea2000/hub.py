@@ -418,7 +418,7 @@ class Hub:
                     ttl=message.ttl,
                     manufacturer=str(message.source_iso_name)
                 )
-                _LOGGER.info("Created new sensor for %s: %s, source: %s, destination: %s, source_iso_name: %s, hash: %s, fields: %s", sensor_id, sensor, message.source, message.destination, message.source_iso_name, message.hash, field)
+                _LOGGER.info("Created new sensor for %s: %s, source: %d, destination: %d, source_iso_name: %s, hash: %s, field: %s", sensor_id, sensor, message.source, message.destination, message.source_iso_name, message.hash, field)
 
                 self.async_add_entities([sensor])
                 self.sensors[sensor_id] = sensor
