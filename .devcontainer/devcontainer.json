@@ -1,0 +1,26 @@
+{
+    "name": "ha-nmea2000",
+    "image": "mcr.microsoft.com/devcontainers/python:3.13",
+    "postCreateCommand": "pip install --upgrade pip && pip install -r requirements.txt && pip install -r requirements_test.txt",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "charliermarsh.ruff",
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ryanluker.vscode-coverage-gutters"
+            ],
+            "settings": {
+                "files.eol": "\n",
+                "editor.tabSize": 4,
+                "editor.formatOnSave": true,
+                "[python]": {
+                    "editor.defaultFormatter": "charliermarsh.ruff"
+                },
+                "python.testing.pytestEnabled": true,
+                "python.testing.pytestArgs": ["tests"]
+            }
+        }
+    },
+    "remoteUser": "vscode"
+}
