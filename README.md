@@ -6,12 +6,13 @@
 
 > Transform your boat's NMEA 2000 network into powerful Home Assistant sensors instantly!
 
-A Home Assistant integration that brings marine data to your smart home. Automatically detect and convert NMEA 2000 messages into Home Assistant sensors with zero configuration. Works with both USB and TCP CAN bus gateways. Based on pure Python NMEA 2000 [package](https://pypi.org/project/nmea2000/) built over [canboat](https://github.com/canboat/canboat) database.
+A Home Assistant integration that brings marine data to your smart home. Automatically detect and convert NMEA 2000 messages into Home Assistant sensors with zero configuration. Works with USB, TCP, and python-can CAN bus gateways. Based on pure Python NMEA 2000 [package](https://pypi.org/project/nmea2000/) built over [canboat](https://github.com/canboat/canboat) database.
 
 ## ✨ Features
 
 - **Plug & Play** - Automatic sensor creation from detected messages
 - **USB gateways**: CANBUS USB devices like [Waveshare USB-CAN-A](https://www.waveshare.com/wiki/USB-CAN-A)
+- **CAN adapter gateways**: Any generic USB or SocketCAN device supported by [python-can](https://python-can.readthedocs.io/) (e.g. Canable, Seeedstudio, SocketCAN on Linux/Raspberry Pi)
 - **TCP gateways**: CANBUS TCP devices like:
      - [EBYTE ECAN-W01S](https://www.cdebyte.com/products/ECAN-W01S)
      - [EBYTE ECAN-E01](https://www.cdebyte.com/products/ECAN-E01)
@@ -25,7 +26,7 @@ A Home Assistant integration that brings marine data to your smart home. Automat
 
 ### Prerequisites
 - A working Home Assistant installation
-- NMEA 2000 network with compatible gateway (USB or TCP)
+- NMEA 2000 network with compatible gateway (USB, CAN adapter, or TCP)
 
 
 ### 🛠 Option 1: Installation via HACS
@@ -50,8 +51,8 @@ Restart Home Assistant when prompted.
 1. Go to Settings → Devices & Services → + Add Integration and search for NMEA 2000. Or, press the link below:  
 [![Open your Home Assistant instance and show an integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=nmea2000)
 2. Click the **ADD HUB** button
-3. Choose a name and if the gateway is USB or TCP one.
-4. Based on the gateway type choose how to connect to it (USB port or TCP IP and port)
+3. Choose a name and select the gateway type: USB, TCP, or CAN.
+4. Based on the gateway type, configure connection parameters (USB port, TCP IP/port, or CAN interface/channel/bitrate)
 2. **Customize**: Choose what PGNs to monitor and in what cadance you want the updates
 
 ### 🛠 Script-Based Update (For Limited Bandwidth Environments)
