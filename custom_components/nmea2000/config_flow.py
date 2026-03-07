@@ -7,6 +7,9 @@ from homeassistant.const import CONF_NAME
 import logging
 
 from .const import (
+    CONF_CAN_BITRATE,
+    CONF_CAN_CHANNEL,
+    CONF_CAN_INTERFACE,
     CONF_DEVICE_TYPE,
     CONF_EXPERIMENTAL,
     CONF_MANUFACTURER_CODES_EXCLUDE,
@@ -19,6 +22,7 @@ from .const import (
     CONF_BAUDRATE,
     CONF_MODE,
     CONF_SERIAL_PORT,
+    CONF_MODE_CAN,
     CONF_MODE_TCP,
     CONF_MODE_USB,
     CONF_MS_BETWEEN_UPDATES,
@@ -82,6 +86,21 @@ TCP_DATA_SCHEMA = vol.Schema(
     }
 )
 
+CAN_DATA_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_CAN_INTERFACE, default="slcan"): str,
+        vol.Required(CONF_CAN_CHANNEL, default="/dev/ttyUSB0"): str,
+        vol.Required(CONF_CAN_BITRATE, default=250000): int,
+        vol.Optional(CONF_PGN_INCLUDE): str,
+        vol.Optional(CONF_PGN_EXCLUDE): str,
+        vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
+        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
+        vol.Optional(CONF_MANUFACTURER_CODES_INCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_INCLUDE),
+        vol.Optional(CONF_MANUFACTURER_CODES_EXCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_EXCLUDE),
+        vol.Optional(CONF_EXPERIMENTAL): bool,
+    }
+)
+
 def parse_and_validate_comma_separated_integers(input_str: str) -> list[int | str]:
     """Parse and validate a comma-separated string of integers."""
     # Check if the input string is empty or contains only whitespace
@@ -135,7 +154,7 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_NAME): str,
                     vol.Required(CONF_MODE, default=CONF_MODE_USB): SelectSelector(
-                        SelectSelectorConfig(options=[CONF_MODE_USB, CONF_MODE_TCP])
+                        SelectSelectorConfig(options=[CONF_MODE_USB, CONF_MODE_TCP, CONF_MODE_CAN])
                     ),
                 }
             ),
@@ -177,11 +196,18 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="options",
-            data_schema=USB_DATA_SCHEMA
-            if self.data[CONF_MODE] == CONF_MODE_USB
-            else TCP_DATA_SCHEMA,
+            data_schema=self._get_schema_for_mode(self.data[CONF_MODE]),
             errors=errors,
         )
+
+    @staticmethod
+    def _get_schema_for_mode(mode: str) -> vol.Schema:
+        """Return the appropriate schema for the given mode."""
+        if mode == CONF_MODE_USB:
+            return USB_DATA_SCHEMA
+        if mode == CONF_MODE_CAN:
+            return CAN_DATA_SCHEMA
+        return TCP_DATA_SCHEMA
 
     @staticmethod
     @callback
@@ -242,9 +268,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
-                USB_DATA_SCHEMA
-                if current_data[CONF_MODE] == CONF_MODE_USB
-                else TCP_DATA_SCHEMA,
+                NMEA2000ConfigFlow._get_schema_for_mode(current_data[CONF_MODE]),
                 current_data,
             ),
             errors=errors

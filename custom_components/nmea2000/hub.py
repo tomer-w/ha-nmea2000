@@ -16,6 +16,9 @@ from nmea2000 import PhysicalQuantities
 
 # Local imports
 from .const import (
+    CONF_CAN_BITRATE,
+    CONF_CAN_CHANNEL,
+    CONF_CAN_INTERFACE,
     CONF_DEVICE_TYPE,
     CONF_EXCLUDE_AIS,
     CONF_EXPERIMENTAL,
@@ -24,6 +27,7 @@ from .const import (
     CONF_MODE,
     CONF_PGN_INCLUDE,
     CONF_PGN_EXCLUDE,
+    CONF_MODE_CAN,
     CONF_MODE_USB,
     CONF_SERIAL_PORT,
     CONF_BAUDRATE,
@@ -42,7 +46,7 @@ from homeassistant.const import CONF_NAME
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 # NMEA 2000 package imports
-from nmea2000 import NMEA2000Message, EByteNmea2000Gateway, WaveShareNmea2000Gateway, YachtDevicesNmea2000Gateway, ActisenseNmea2000Gateway, FieldTypes, State
+from nmea2000 import NMEA2000Message, EByteNmea2000Gateway, WaveShareNmea2000Gateway, YachtDevicesNmea2000Gateway, ActisenseNmea2000Gateway, PythonCanAsyncIOClient, FieldTypes, State
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -242,6 +246,30 @@ class Hub:
                 )
             else:
                 raise Exception(f"device_type {device_type} not supported")
+        elif mode == CONF_MODE_CAN:
+            can_interface = entry.data[CONF_CAN_INTERFACE]
+            can_channel = entry.data[CONF_CAN_CHANNEL]
+            can_bitrate = entry.data[CONF_CAN_BITRATE]
+            _LOGGER.info(
+                "CAN sensor with name: %s, interface: %s, channel: %s, bitrate: %s",
+                self.name,
+                can_interface,
+                can_channel,
+                can_bitrate,
+            )
+            self.gateway = PythonCanAsyncIOClient(
+                interface=can_interface,
+                channel=can_channel,
+                bitrate=can_bitrate,
+                exclude_pgns=pgn_exclude,
+                include_pgns=pgn_include,
+                preferred_units=preferred_units,
+                dump_to_file=dump_to_file,
+                dump_pgns=dump_pgns,
+                build_network_map=build_network_map,
+                include_manufacturer_code=include_manufacturer_code,
+                exclude_manufacturer_code=exclude_manufacturer_code,
+            )
         else:
             raise Exception(f"mode {mode} not supported")
 
