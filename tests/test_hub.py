@@ -1,6 +1,6 @@
 """Tests for the NMEA2000 Hub."""
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from nmea2000 import State
@@ -23,6 +23,14 @@ from custom_components.nmea2000.const import (
 from custom_components.nmea2000.hub import Hub
 
 
+def _make_gateway_mock():
+    """Create a gateway mock with async methods properly mocked."""
+    mock = MagicMock()
+    mock.connect = AsyncMock()
+    mock.close = AsyncMock()
+    return mock
+
+
 def _make_entry(hass, mode, extra_data=None):
     """Create a MockConfigEntry with the given mode and extra data."""
     data = {"name": "Test", CONF_MODE: mode}
@@ -36,9 +44,7 @@ def _make_entry(hass, mode, extra_data=None):
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
 async def test_hub_creates_can_gateway(mock_can_cls, hass):
     """Test Hub creates PythonCanAsyncIOClient for CAN mode."""
-    mock_can_cls.return_value = MagicMock()
-    mock_can_cls.return_value.set_receive_callback = MagicMock()
-    mock_can_cls.return_value.set_status_callback = MagicMock()
+    mock_can_cls.return_value = _make_gateway_mock()
 
     entry = _make_entry(hass, CONF_MODE_CAN, {
         CONF_CAN_INTERFACE: "socketcan",
@@ -57,9 +63,7 @@ async def test_hub_creates_can_gateway(mock_can_cls, hass):
 @patch("custom_components.nmea2000.hub.WaveShareNmea2000Gateway")
 async def test_hub_creates_usb_gateway(mock_usb_cls, hass):
     """Test Hub creates WaveShareNmea2000Gateway for USB mode."""
-    mock_usb_cls.return_value = MagicMock()
-    mock_usb_cls.return_value.set_receive_callback = MagicMock()
-    mock_usb_cls.return_value.set_status_callback = MagicMock()
+    mock_usb_cls.return_value = _make_gateway_mock()
 
     entry = _make_entry(hass, CONF_MODE_USB, {
         CONF_SERIAL_PORT: "/dev/ttyUSB0",
@@ -74,9 +78,7 @@ async def test_hub_creates_usb_gateway(mock_usb_cls, hass):
 @patch("custom_components.nmea2000.hub.EByteNmea2000Gateway")
 async def test_hub_creates_tcp_ebyte_gateway(mock_tcp_cls, hass):
     """Test Hub creates EByteNmea2000Gateway for TCP/EBYTE mode."""
-    mock_tcp_cls.return_value = MagicMock()
-    mock_tcp_cls.return_value.set_receive_callback = MagicMock()
-    mock_tcp_cls.return_value.set_status_callback = MagicMock()
+    mock_tcp_cls.return_value = _make_gateway_mock()
 
     entry = _make_entry(hass, CONF_MODE_TCP, {
         CONF_DEVICE_TYPE: "EBYTE",
@@ -100,9 +102,7 @@ async def test_hub_rejects_unknown_mode(hass):
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
 async def test_hub_can_gateway_receives_pgn_filters(mock_can_cls, hass):
     """Test CAN gateway receives PGN include/exclude lists."""
-    mock_can_cls.return_value = MagicMock()
-    mock_can_cls.return_value.set_receive_callback = MagicMock()
-    mock_can_cls.return_value.set_status_callback = MagicMock()
+    mock_can_cls.return_value = _make_gateway_mock()
 
     entry = _make_entry(hass, CONF_MODE_CAN, {
         CONF_CAN_INTERFACE: "slcan",
@@ -120,7 +120,7 @@ async def test_hub_can_gateway_receives_pgn_filters(mock_can_cls, hass):
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
 async def test_hub_can_sets_callbacks(mock_can_cls, hass):
     """Test CAN gateway gets receive and status callbacks set."""
-    mock_instance = MagicMock()
+    mock_instance = _make_gateway_mock()
     mock_can_cls.return_value = mock_instance
 
     entry = _make_entry(hass, CONF_MODE_CAN, {
@@ -137,9 +137,7 @@ async def test_hub_can_sets_callbacks(mock_can_cls, hass):
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
 async def test_hub_status_callback_connected(mock_can_cls, hass):
     """Test status callback sets Running state on CONNECTED."""
-    mock_can_cls.return_value = MagicMock()
-    mock_can_cls.return_value.set_receive_callback = MagicMock()
-    mock_can_cls.return_value.set_status_callback = MagicMock()
+    mock_can_cls.return_value = _make_gateway_mock()
 
     entry = _make_entry(hass, CONF_MODE_CAN, {
         CONF_CAN_INTERFACE: "slcan",
@@ -157,9 +155,7 @@ async def test_hub_status_callback_connected(mock_can_cls, hass):
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
 async def test_hub_status_callback_disconnected(mock_can_cls, hass):
     """Test status callback sets Disconnected state on DISCONNECTED."""
-    mock_can_cls.return_value = MagicMock()
-    mock_can_cls.return_value.set_receive_callback = MagicMock()
-    mock_can_cls.return_value.set_status_callback = MagicMock()
+    mock_can_cls.return_value = _make_gateway_mock()
 
     entry = _make_entry(hass, CONF_MODE_CAN, {
         CONF_CAN_INTERFACE: "slcan",
@@ -176,9 +172,7 @@ async def test_hub_status_callback_disconnected(mock_can_cls, hass):
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
 async def test_hub_hyphenated_name_creates_valid_sensors(mock_can_cls, hass):
     """Test Hub with hyphenated name creates sensors with sanitized unique IDs."""
-    mock_can_cls.return_value = MagicMock()
-    mock_can_cls.return_value.set_receive_callback = MagicMock()
-    mock_can_cls.return_value.set_status_callback = MagicMock()
+    mock_can_cls.return_value = _make_gateway_mock()
 
     entry = _make_entry(hass, CONF_MODE_CAN, {
         "name": "YDEN-02",
