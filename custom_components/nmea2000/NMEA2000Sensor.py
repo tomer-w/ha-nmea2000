@@ -31,7 +31,7 @@ class NMEA2000Sensor(SensorEntity):
         need_state_class = isinstance(initial_state, (int, float))
         _LOGGER.info("Initializing NMEA2000Sensor: sensor_id=%s, friendly_name=%s, initial_state: %s (%s), unit_of_measurement=%s, device_name=%s, via_device=%s, update_frequncy=%s, ttl=%s, need_state_class=%s",
                       sensor_id, friendly_name, initial_state, type(initial_state), unit_of_measurement, device_name, via_device, update_frequncy, ttl, need_state_class)
-        self._attr_unique_id = sensor_id.lower().replace(" ", "_")
+        self._attr_unique_id = sensor_id.lower().replace(" ", "_").replace("-", "_")
         self._attr_name = friendly_name
         self._device_name = device_name
         self._attr_native_value = initial_state

@@ -172,3 +172,24 @@ async def test_hub_status_callback_disconnected(mock_can_cls, hass):
     await hub.status_callback(State.DISCONNECTED)
     assert hub.state == "Disconnected"
 
+
+@patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
+async def test_hub_hyphenated_name_creates_valid_sensors(mock_can_cls, hass):
+    """Test Hub with hyphenated name creates sensors with sanitized unique IDs."""
+    mock_can_cls.return_value = MagicMock()
+    mock_can_cls.return_value.set_receive_callback = MagicMock()
+    mock_can_cls.return_value.set_status_callback = MagicMock()
+
+    entry = _make_entry(hass, CONF_MODE_CAN, {
+        "name": "YDEN-02",
+        CONF_CAN_INTERFACE: "socketcan",
+        CONF_CAN_CHANNEL: "can0",
+        CONF_CAN_BITRATE: 250000,
+    })
+    hub = Hub(hass, entry)
+
+    assert hub.name == "YDEN-02"
+    assert "-" not in hub.state_sensor._attr_unique_id
+    assert "-" not in hub.total_messages_sensor._attr_unique_id
+    assert "-" not in hub.msg_per_minute_sensor._attr_unique_id
+

@@ -94,7 +94,6 @@ class Hub:
 
         # Retrieve configuration from entry
         self.name = entry.data[CONF_NAME]
-        self.id = self.name.lower().replace(" ", "_")
         self.time_between_updates = timedelta(milliseconds=entry.data.get(CONF_MS_BETWEEN_UPDATES, 5000))
         mode = entry.data[CONF_MODE]
         self.device_name = f"NMEA 2000 {mode} Gateway"
@@ -152,13 +151,13 @@ class Hub:
 
         # Create system sensors
         self.state_sensor = NMEA2000Sensor(
-            id=self.id+"_state", 
+            sensor_id=self.name+"_state", 
             friendly_name="State", 
             initial_state=self.state, 
             device_name=self.device_name, 
         )
         self.total_messages_sensor = NMEA2000Sensor(
-            id=self.id+"_total_messages", 
+            sensor_id=self.name+"_total_messages", 
             friendly_name="Total message count", 
             initial_state=0, 
             unit_of_measurement="messages", 
@@ -166,7 +165,7 @@ class Hub:
             update_frequncy=self.time_between_updates,
         )
         self.msg_per_minute_sensor = NMEA2000Sensor(
-            id=self.id+"_messages_per_minute", 
+            sensor_id=self.name+"_messages_per_minute", 
             friendly_name="Messages per minute", 
             initial_state=0, 
             unit_of_measurement="msg/min", 
@@ -382,7 +381,7 @@ class Hub:
         if pgn_sensor is None:
             _LOGGER.info("Creating new sensor for PGN %d", message.PGN)
             sensor = NMEA2000Sensor(
-                id=self.id + "_" + message.id,
+                sensor_id=self.name + "_" + message.id,
                 friendly_name=f"PGN {message.PGN} message count",
                 initial_state=1,
                 unit_of_measurement="count",
@@ -401,7 +400,7 @@ class Hub:
             )
             pgn_sensor.set_state(new_value, ignore_tracing = True)
 
-        sensor_name_prefix = f"{self.id}_{message.PGN}_{message.id}_{message.hash}_"
+        sensor_name_prefix = f"{self.name}_{message.PGN}_{message.id}_{message.hash}_"
 
         # Process individual fields in the message
         for field in message.fields:
@@ -436,7 +435,7 @@ class Hub:
             if sensor is None:
                 # Create new sensor
                 sensor = NMEA2000Sensor(
-                    id=sensor_id,
+                    sensor_id=sensor_id,
                     friendly_name=field.name,
                     initial_state=field.value,
                     unit_of_measurement=field.unit_of_measurement,
