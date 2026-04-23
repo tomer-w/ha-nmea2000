@@ -44,7 +44,6 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.start import async_at_start
 
 # NMEA 2000 package imports
 from nmea2000 import NMEA2000Message, EByteNmea2000Gateway, WaveShareNmea2000Gateway, YachtDevicesNmea2000Gateway, ActisenseNmea2000Gateway, PythonCanAsyncIOClient, FieldTypes, State
@@ -278,11 +277,6 @@ class Hub:
         self.gateway.set_status_callback(self.status_callback)
 
         self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, self.stop)
-        async_at_start(self.hass, self._async_start)
-
-    async def _async_start(self, _event) -> None:
-        """Start the hub when Home Assistant is fully started."""
-        await self.start()
 
     async def register_async_add_entities(self, async_add_entities: AddEntitiesCallback) -> None:
         """
@@ -465,7 +459,7 @@ class Hub:
                 sensor.set_state(field.value)
         
 
-    async def start(self) -> None:
+    async def start(self, _event=None) -> None:
         """
         Connect to the NMEA2000 gateway and start background tasks.
         """
