@@ -4,6 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
+from homeassistant.helpers.start import async_at_start
 from .const import DOMAIN
 from .hub import Hub
 import logging
@@ -49,6 +50,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Register the update listener
     entry.async_on_unload(entry.add_update_listener(_update_listener))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Start the hub AFTER sensor platform is fully set up so that
+    # entity sensors are ready (async_added_to_hass has fired) before
+    # the gateway connect callback tries to update their state.
+    entry.async_on_unload(async_at_start(hass, hub.start))
     return True
 
 
