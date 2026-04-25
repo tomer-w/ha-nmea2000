@@ -154,7 +154,8 @@ class Hub:
             sensor_id=self.name+"_state", 
             friendly_name="State", 
             initial_state=self.state, 
-            device_name=self.device_name, 
+            device_name=self.device_name,
+            update_frequncy=timedelta(0),
         )
         self.total_messages_sensor = NMEA2000Sensor(
             sensor_id=self.name+"_total_messages", 
