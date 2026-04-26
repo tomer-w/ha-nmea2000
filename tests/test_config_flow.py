@@ -5,10 +5,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.nmea2000.const import (
     DOMAIN,
-    CONF_MODE,
-    CONF_MODE_CAN,
-    CONF_MODE_TCP,
-    CONF_MODE_USB,
     CONF_CAN_INTERFACE,
     CONF_CAN_CHANNEL,
     CONF_CAN_BITRATE,
@@ -16,15 +12,15 @@ from custom_components.nmea2000.const import (
     CONF_BAUDRATE,
     CONF_IP,
     CONF_PORT,
-    CONF_DEVICE_TYPE,
     CONF_PGN_INCLUDE,
     CONF_PGN_EXCLUDE,
 )
 from custom_components.nmea2000.config_flow import (
-    USB_DATA_SCHEMA,
-    TCP_DATA_SCHEMA,
-    CAN_DATA_SCHEMA,
+    CONF_GATEWAY_TYPE,
+    GatewayType,
     NMEA2000ConfigFlow,
+    _build_options_schema,
+    _resolve_gateway_type,
     parse_and_validate_comma_separated_integers,
 )
 
@@ -58,60 +54,46 @@ async def test_parse_invalid_value_raises():
 
 # --- Schema field presence tests ---
 
-async def test_usb_schema_has_serial_port():
-    assert CONF_SERIAL_PORT in USB_DATA_SCHEMA.schema
-    assert CONF_BAUDRATE in USB_DATA_SCHEMA.schema
-
-
-async def test_usb_schema_has_no_can_fields():
-    keys = [str(k) for k in USB_DATA_SCHEMA.schema]
+async def test_serial_schema_has_serial_fields():
+    schema = _build_options_schema(GatewayType.WAVESHARE)
+    keys = [str(k) for k in schema.schema]
+    assert CONF_SERIAL_PORT in keys
+    assert CONF_BAUDRATE in keys
     assert CONF_CAN_INTERFACE not in keys
-    assert CONF_CAN_CHANNEL not in keys
-    assert CONF_CAN_BITRATE not in keys
+    assert CONF_IP not in keys
 
 
 async def test_tcp_schema_has_ip_port():
-    assert CONF_IP in TCP_DATA_SCHEMA.schema
-    assert CONF_PORT in TCP_DATA_SCHEMA.schema
-    assert CONF_DEVICE_TYPE in TCP_DATA_SCHEMA.schema
-
-
-async def test_tcp_schema_has_no_can_fields():
-    keys = [str(k) for k in TCP_DATA_SCHEMA.schema]
-    assert CONF_CAN_INTERFACE not in keys
-    assert CONF_CAN_CHANNEL not in keys
-    assert CONF_CAN_BITRATE not in keys
+    for gt in (GatewayType.EBYTE, GatewayType.TEXT, GatewayType.ACTISENSE_BST):
+        schema = _build_options_schema(gt)
+        keys = [str(k) for k in schema.schema]
+        assert CONF_IP in keys, f"{gt} missing ip"
+        assert CONF_PORT in keys, f"{gt} missing port"
+        assert CONF_SERIAL_PORT not in keys, f"{gt} has serial_port"
+        assert CONF_CAN_INTERFACE not in keys, f"{gt} has can_interface"
 
 
 async def test_can_schema_has_can_fields():
-    assert CONF_CAN_INTERFACE in CAN_DATA_SCHEMA.schema
-    assert CONF_CAN_CHANNEL in CAN_DATA_SCHEMA.schema
-    assert CONF_CAN_BITRATE in CAN_DATA_SCHEMA.schema
-
-
-async def test_can_schema_has_no_tcp_fields():
-    keys = [str(k) for k in CAN_DATA_SCHEMA.schema]
+    schema = _build_options_schema(GatewayType.PYTHON_CAN)
+    keys = [str(k) for k in schema.schema]
+    assert CONF_CAN_INTERFACE in keys
+    assert CONF_CAN_CHANNEL in keys
+    assert CONF_CAN_BITRATE in keys
     assert CONF_IP not in keys
-    assert CONF_PORT not in keys
-    assert CONF_DEVICE_TYPE not in keys
-
-
-async def test_can_schema_has_no_usb_fields():
-    keys = [str(k) for k in CAN_DATA_SCHEMA.schema]
     assert CONF_SERIAL_PORT not in keys
-    assert CONF_BAUDRATE not in keys
 
 
-async def test_can_schema_has_common_fields():
-    """CAN schema should have the shared PGN include/exclude fields."""
-    keys = [str(k) for k in CAN_DATA_SCHEMA.schema]
-    assert CONF_PGN_INCLUDE in keys
-    assert CONF_PGN_EXCLUDE in keys
+async def test_all_schemas_have_common_fields():
+    for gt in GatewayType:
+        schema = _build_options_schema(gt)
+        keys = [str(k) for k in schema.schema]
+        assert CONF_PGN_INCLUDE in keys, f"{gt} missing pgn_include"
+        assert CONF_PGN_EXCLUDE in keys, f"{gt} missing pgn_exclude"
 
 
 async def test_can_schema_validates_valid_input():
-    """CAN schema should accept valid CAN configuration."""
-    result = CAN_DATA_SCHEMA({
+    schema = _build_options_schema(GatewayType.PYTHON_CAN)
+    result = schema({
         CONF_CAN_INTERFACE: "slcan",
         CONF_CAN_CHANNEL: "/dev/ttyUSB0",
         CONF_CAN_BITRATE: 250000,
@@ -122,34 +104,24 @@ async def test_can_schema_validates_valid_input():
 
 
 async def test_can_schema_defaults():
-    """CAN schema should use correct defaults."""
-    result = CAN_DATA_SCHEMA({})
+    schema = _build_options_schema(GatewayType.PYTHON_CAN)
+    result = schema({})
     assert result[CONF_CAN_INTERFACE] == "slcan"
     assert result[CONF_CAN_CHANNEL] == "/dev/ttyUSB0"
     assert result[CONF_CAN_BITRATE] == 250000
 
 
-# --- _get_schema_for_mode tests ---
+# --- _resolve_gateway_type tests ---
 
-async def test_get_schema_for_usb_mode():
-    schema = NMEA2000ConfigFlow._get_schema_for_mode(CONF_MODE_USB)
-    assert schema is USB_DATA_SCHEMA
-
-
-async def test_get_schema_for_tcp_mode():
-    schema = NMEA2000ConfigFlow._get_schema_for_mode(CONF_MODE_TCP)
-    assert schema is TCP_DATA_SCHEMA
-
-
-async def test_get_schema_for_can_mode():
-    schema = NMEA2000ConfigFlow._get_schema_for_mode(CONF_MODE_CAN)
-    assert schema is CAN_DATA_SCHEMA
+async def test_resolve_new_config():
+    for gt in GatewayType:
+        assert _resolve_gateway_type({CONF_GATEWAY_TYPE: gt.value}) == gt
 
 
 # --- Config flow integration tests ---
 
 async def test_user_step_shows_form(hass):
-    """Test that the first step shows a form with name and mode fields."""
+    """Test that the first step shows a form with name and gateway_type fields."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
@@ -157,40 +129,15 @@ async def test_user_step_shows_form(hass):
     assert result["step_id"] == "user"
 
 
-async def test_user_step_usb_proceeds_to_options(hass):
-    """Test selecting USB mode proceeds to the options step."""
+@pytest.mark.parametrize("gateway_type", [gt.value for gt in GatewayType])
+async def test_user_step_proceeds_to_options(hass, gateway_type):
+    """Test selecting any gateway type proceeds to the options step."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {"name": "My NMEA", CONF_MODE: CONF_MODE_USB},
-    )
-    assert result2["type"] == FlowResultType.FORM
-    assert result2["step_id"] == "options"
-
-
-async def test_user_step_can_proceeds_to_options(hass):
-    """Test selecting CAN mode proceeds to the options step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
-    result2 = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {"name": "My CAN", CONF_MODE: CONF_MODE_CAN},
-    )
-    assert result2["type"] == FlowResultType.FORM
-    assert result2["step_id"] == "options"
-
-
-async def test_user_step_tcp_proceeds_to_options(hass):
-    """Test selecting TCP mode proceeds to the options step."""
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": "user"}
-    )
-    result2 = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {"name": "My TCP", CONF_MODE: CONF_MODE_TCP},
+        {"name": f"Test {gateway_type}", CONF_GATEWAY_TYPE: gateway_type},
     )
     assert result2["type"] == FlowResultType.FORM
     assert result2["step_id"] == "options"
@@ -203,7 +150,7 @@ async def test_full_can_flow_creates_entry(hass):
     )
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {"name": "CAN Gateway", CONF_MODE: CONF_MODE_CAN},
+        {"name": "CAN Gateway", CONF_GATEWAY_TYPE: GatewayType.PYTHON_CAN.value},
     )
     result3 = await hass.config_entries.flow.async_configure(
         result2["flow_id"],
@@ -215,7 +162,7 @@ async def test_full_can_flow_creates_entry(hass):
     )
     assert result3["type"] == FlowResultType.CREATE_ENTRY
     assert result3["title"] == "CAN Gateway"
-    assert result3["data"][CONF_MODE] == CONF_MODE_CAN
+    assert result3["data"][CONF_GATEWAY_TYPE] == GatewayType.PYTHON_CAN.value
     assert result3["data"][CONF_CAN_INTERFACE] == "socketcan"
     assert result3["data"][CONF_CAN_CHANNEL] == "can0"
     assert result3["data"][CONF_CAN_BITRATE] == 250000
@@ -228,7 +175,7 @@ async def test_full_usb_flow_creates_entry(hass):
     )
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {"name": "USB Gateway", CONF_MODE: CONF_MODE_USB},
+        {"name": "USB Gateway", CONF_GATEWAY_TYPE: GatewayType.WAVESHARE.value},
     )
     result3 = await hass.config_entries.flow.async_configure(
         result2["flow_id"],
@@ -239,31 +186,52 @@ async def test_full_usb_flow_creates_entry(hass):
     )
     assert result3["type"] == FlowResultType.CREATE_ENTRY
     assert result3["title"] == "USB Gateway"
-    assert result3["data"][CONF_MODE] == CONF_MODE_USB
+    assert result3["data"][CONF_GATEWAY_TYPE] == GatewayType.WAVESHARE.value
 
 
-async def test_duplicate_name_rejected(hass):
-    """Test that a duplicate name is rejected."""
-    # Create first entry
+async def test_full_tcp_text_flow_creates_entry(hass):
+    """Test completing the full Text TCP config flow creates an entry."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {"name": "My NMEA", CONF_MODE: CONF_MODE_USB},
+        {"name": "Text Gateway", CONF_GATEWAY_TYPE: GatewayType.TEXT.value},
+    )
+    result3 = await hass.config_entries.flow.async_configure(
+        result2["flow_id"],
+        {
+            CONF_IP: "192.168.1.100",
+            CONF_PORT: 2000,
+        },
+    )
+    assert result3["type"] == FlowResultType.CREATE_ENTRY
+    assert result3["title"] == "Text Gateway"
+    assert result3["data"][CONF_GATEWAY_TYPE] == GatewayType.TEXT.value
+    assert result3["data"][CONF_IP] == "192.168.1.100"
+    assert result3["data"][CONF_PORT] == 2000
+
+
+async def test_duplicate_name_rejected(hass):
+    """Test that a duplicate name is rejected."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}
+    )
+    result2 = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"name": "My NMEA", CONF_GATEWAY_TYPE: GatewayType.WAVESHARE.value},
     )
     await hass.config_entries.flow.async_configure(
         result2["flow_id"],
         {CONF_SERIAL_PORT: "/dev/ttyUSB0", CONF_BAUDRATE: 2000000},
     )
 
-    # Try creating second entry with same name
     result4 = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}
     )
     result5 = await hass.config_entries.flow.async_configure(
         result4["flow_id"],
-        {"name": "My NMEA", CONF_MODE: CONF_MODE_USB},
+        {"name": "My NMEA", CONF_GATEWAY_TYPE: GatewayType.WAVESHARE.value},
     )
     assert result5["type"] == FlowResultType.FORM
     assert result5["errors"]["name"] == "name_exists"
@@ -276,7 +244,7 @@ async def test_invalid_pgn_include_rejected(hass):
     )
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {"name": "Test", CONF_MODE: CONF_MODE_USB},
+        {"name": "Test", CONF_GATEWAY_TYPE: GatewayType.WAVESHARE.value},
     )
     result3 = await hass.config_entries.flow.async_configure(
         result2["flow_id"],
@@ -297,7 +265,7 @@ async def test_both_pgn_include_and_exclude_rejected(hass):
     )
     result2 = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {"name": "Test", CONF_MODE: CONF_MODE_USB},
+        {"name": "Test", CONF_GATEWAY_TYPE: GatewayType.WAVESHARE.value},
     )
     result3 = await hass.config_entries.flow.async_configure(
         result2["flow_id"],
@@ -318,9 +286,10 @@ async def test_options_flow_shows_form(hass):
     """Test that the options flow shows a form for existing entry."""
     entry = MockConfigEntry(
         domain=DOMAIN,
+        version=2,
         data={
             "name": "Test",
-            CONF_MODE: CONF_MODE_USB,
+            CONF_GATEWAY_TYPE: GatewayType.WAVESHARE.value,
             CONF_SERIAL_PORT: "/dev/ttyUSB0",
             CONF_BAUDRATE: 2000000,
         },
@@ -336,9 +305,10 @@ async def test_options_flow_updates_entry(hass):
     """Test that the options flow updates the config entry."""
     entry = MockConfigEntry(
         domain=DOMAIN,
+        version=2,
         data={
             "name": "Test",
-            CONF_MODE: CONF_MODE_USB,
+            CONF_GATEWAY_TYPE: GatewayType.WAVESHARE.value,
             CONF_SERIAL_PORT: "/dev/ttyUSB0",
             CONF_BAUDRATE: 2000000,
         },
@@ -362,9 +332,10 @@ async def test_options_flow_rejects_invalid_pgn(hass):
     """Test that the options flow rejects invalid PGN values."""
     entry = MockConfigEntry(
         domain=DOMAIN,
+        version=2,
         data={
             "name": "Test",
-            CONF_MODE: CONF_MODE_USB,
+            CONF_GATEWAY_TYPE: GatewayType.WAVESHARE.value,
             CONF_SERIAL_PORT: "/dev/ttyUSB0",
             CONF_BAUDRATE: 2000000,
         },
@@ -382,4 +353,101 @@ async def test_options_flow_rejects_invalid_pgn(hass):
     )
     assert result2["type"] == FlowResultType.FORM
     assert result2["errors"][CONF_PGN_INCLUDE] == "pgn_not_valid"
+
+
+# --- Migration tests ---
+
+async def test_migration_usb_to_waveshare(hass):
+    """Test v1 USB config migrates to v2 waveshare gateway_type."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={
+            "name": "USB Device",
+            "mode": "USB",
+            CONF_SERIAL_PORT: "/dev/ttyUSB0",
+            CONF_BAUDRATE: 2000000,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.version == 2
+    assert entry.data[CONF_GATEWAY_TYPE] == "waveshare"
+    assert "mode" not in entry.data
+    assert CONF_SERIAL_PORT in entry.data
+
+
+async def test_migration_tcp_ebyte(hass):
+    """Test v1 TCP/EBYTE config migrates to v2 ebyte gateway_type."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={
+            "name": "EByte",
+            "mode": "TCP",
+            "device_type": "EBYTE",
+            CONF_IP: "192.168.1.100",
+            CONF_PORT: 8881,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.version == 2
+    assert entry.data[CONF_GATEWAY_TYPE] == "ebyte"
+    assert "mode" not in entry.data
+    assert "device_type" not in entry.data
+
+
+@pytest.mark.parametrize("device_type", ["Actisense", "Yacht Devices", "TCP"])
+async def test_migration_tcp_text_variants(hass, device_type):
+    """Test v1 TCP text-based configs migrate to v2 text gateway_type."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={
+            "name": f"Test {device_type}",
+            "mode": "TCP",
+            "device_type": device_type,
+            CONF_IP: "192.168.1.100",
+            CONF_PORT: 2000,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.version == 2
+    assert entry.data[CONF_GATEWAY_TYPE] == "text"
+    assert "mode" not in entry.data
+    assert "device_type" not in entry.data
+
+
+async def test_migration_can_to_python_can(hass):
+    """Test v1 CAN config migrates to v2 python_can gateway_type."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=1,
+        data={
+            "name": "CAN Device",
+            "mode": "CAN",
+            CONF_CAN_INTERFACE: "socketcan",
+            CONF_CAN_CHANNEL: "can0",
+            CONF_CAN_BITRATE: 250000,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.version == 2
+    assert entry.data[CONF_GATEWAY_TYPE] == "python_can"
+    assert "mode" not in entry.data
 

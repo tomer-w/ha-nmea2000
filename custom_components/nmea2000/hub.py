@@ -27,15 +27,12 @@ from .const import (
     CONF_MODE,
     CONF_PGN_INCLUDE,
     CONF_PGN_EXCLUDE,
-    CONF_MODE_CAN,
-    CONF_MODE_USB,
     CONF_SERIAL_PORT,
-    CONF_BAUDRATE,
     CONF_IP,
     CONF_PORT,
     CONF_MS_BETWEEN_UPDATES,
 )
-from .config_flow import NetworkDeviceType, parse_and_validate_comma_separated_integers
+from .config_flow import GatewayType, _resolve_gateway_type, parse_and_validate_comma_separated_integers
 from .NMEA2000Sensor import NMEA2000Sensor
 
 # Home Assistant imports
@@ -46,7 +43,7 @@ from homeassistant.const import CONF_NAME
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 # NMEA 2000 package imports
-from nmea2000 import NMEA2000Message, EByteNmea2000Gateway, WaveShareNmea2000Gateway, YachtDevicesNmea2000Gateway, ActisenseNmea2000Gateway, PythonCanAsyncIOClient, FieldTypes, State
+from nmea2000 import NMEA2000Message, EByteNmea2000Gateway, WaveShareNmea2000Gateway, TextNmea2000Gateway, ActisenseBstNmea2000Gateway, PythonCanAsyncIOClient, FieldTypes, State
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -95,8 +92,7 @@ class Hub:
         # Retrieve configuration from entry
         self.name = entry.data[CONF_NAME]
         self.time_between_updates = timedelta(milliseconds=entry.data.get(CONF_MS_BETWEEN_UPDATES, 5000))
-        mode = entry.data[CONF_MODE]
-        self.device_name = f"NMEA 2000 {mode} Gateway"
+        self.device_name = f"NMEA 2000 Gateway"
         self.experimental = entry.data.get(CONF_EXPERIMENTAL)
 
         # Parse PGN include/exclude lists
@@ -137,9 +133,8 @@ class Hub:
         preferred_units = {PhysicalQuantities.TEMPERATURE:"C", PhysicalQuantities.ANGLE:"deg", PhysicalQuantities.SPEED:"kts"}
 
         _LOGGER.info(
-            "Configuring sensor with name: %s, mode: %s, PGN Include: %s, PGN Exclude: %s, preferred_units: %s, dump_to_file: %s, dump_pgns: %s, include_manufacturer_code: %s, exclude_manufacturer_code: %s",
+            "Configuring sensor with name: %s, PGN Include: %s, PGN Exclude: %s, preferred_units: %s, dump_to_file: %s, dump_pgns: %s, include_manufacturer_code: %s, exclude_manufacturer_code: %s",
             self.name,
-            mode,
             pgn_include,
             pgn_exclude,
             preferred_units,
@@ -173,105 +168,54 @@ class Hub:
             device_name=self.device_name,
         )
 
-        # Configure the appropriate gateway based on mode
-        if mode == CONF_MODE_USB:
+        # Common kwargs shared by all gateway constructors
+        common_kwargs = dict(
+            exclude_pgns=pgn_exclude,
+            include_pgns=pgn_include,
+            preferred_units=preferred_units,
+            dump_to_file=dump_to_file,
+            dump_pgns=dump_pgns,
+            build_network_map=build_network_map,
+            include_manufacturer_code=include_manufacturer_code,
+            exclude_manufacturer_code=exclude_manufacturer_code,
+        )
+
+        # Resolve the gateway type (handles both new and legacy config formats)
+        gateway_type = _resolve_gateway_type(entry.data)
+        _LOGGER.info("Configuring gateway type: %s", gateway_type)
+
+        if gateway_type == GatewayType.WAVESHARE:
             serial_port = entry.data[CONF_SERIAL_PORT]
-            baudrate = entry.data[CONF_BAUDRATE]
-            _LOGGER.info(
-                "USB sensor with name: %s, serial_port: %s, baudrate: %s",
-                self.name,
-                serial_port,
-                baudrate,
-            )
-            self.gateway = WaveShareNmea2000Gateway(
-                port=serial_port, 
-                exclude_pgns=pgn_exclude, 
-                include_pgns=pgn_include,
-                preferred_units=preferred_units,
-                dump_to_file=dump_to_file,
-                dump_pgns=dump_pgns,
-                build_network_map = build_network_map,
-                include_manufacturer_code = include_manufacturer_code,
-                exclude_manufacturer_code = exclude_manufacturer_code,
-            )
-        elif mode == "TCP":
-            ip = entry.data[CONF_IP]
-            port = entry.data[CONF_PORT]
-            device_type = NetworkDeviceType(entry.data[CONF_DEVICE_TYPE])
-            _LOGGER.info(
-                "TCP sensor with name: %s, IP: %s, port: %s, device_type: %s", 
-                self.name, 
-                ip, 
-                port,
-                device_type
-            )
-            if device_type == NetworkDeviceType.EBYTE:
-                self.gateway = EByteNmea2000Gateway(
-                    host=ip, 
-                    port=port, 
-                    exclude_pgns=pgn_exclude, 
-                    include_pgns=pgn_include,
-                    preferred_units=preferred_units,
-                    dump_to_file=dump_to_file,
-                    dump_pgns=dump_pgns,
-                    build_network_map = build_network_map,
-                    include_manufacturer_code = include_manufacturer_code,
-                    exclude_manufacturer_code = exclude_manufacturer_code,
-                )
-            elif device_type == NetworkDeviceType.ACTISENSE:
-                self.gateway = ActisenseNmea2000Gateway(
-                    host=ip, 
-                    port=port, 
-                    exclude_pgns=pgn_exclude, 
-                    include_pgns=pgn_include,
-                    preferred_units=preferred_units,
-                    dump_to_file=dump_to_file,
-                    dump_pgns=dump_pgns,
-                    build_network_map = build_network_map,
-                    include_manufacturer_code = include_manufacturer_code,
-                    exclude_manufacturer_code = exclude_manufacturer_code,
-            )
-            elif device_type == NetworkDeviceType.YACHT_DEVICES:
-                self.gateway = YachtDevicesNmea2000Gateway(
-                    host=ip, 
-                    port=port, 
-                    exclude_pgns=pgn_exclude, 
-                    include_pgns=pgn_include,
-                    preferred_units=preferred_units,
-                    dump_to_file=dump_to_file,
-                    dump_pgns=dump_pgns,
-                    build_network_map = build_network_map,
-                    include_manufacturer_code = include_manufacturer_code,
-                    exclude_manufacturer_code = exclude_manufacturer_code,
-                )
-            else:
-                raise Exception(f"device_type {device_type} not supported")
-        elif mode == CONF_MODE_CAN:
+            _LOGGER.info("Waveshare USB-CAN with serial_port: %s", serial_port)
+            self.gateway = WaveShareNmea2000Gateway(port=serial_port, **common_kwargs)
+
+        elif gateway_type == GatewayType.EBYTE:
+            ip, port = entry.data[CONF_IP], entry.data[CONF_PORT]
+            _LOGGER.info("EByte TCP with IP: %s, port: %s", ip, port)
+            self.gateway = EByteNmea2000Gateway(host=ip, port=port, **common_kwargs)
+
+        elif gateway_type == GatewayType.TEXT:
+            ip, port = entry.data[CONF_IP], entry.data[CONF_PORT]
+            _LOGGER.info("Text TCP (auto-detect) with IP: %s, port: %s", ip, port)
+            self.gateway = TextNmea2000Gateway(host=ip, port=port, **common_kwargs)
+
+        elif gateway_type == GatewayType.ACTISENSE_BST:
+            ip, port = entry.data[CONF_IP], entry.data[CONF_PORT]
+            _LOGGER.info("Actisense BST D0 with IP: %s, port: %s", ip, port)
+            self.gateway = ActisenseBstNmea2000Gateway(host=ip, port=port, **common_kwargs)
+
+        elif gateway_type == GatewayType.PYTHON_CAN:
             can_interface = entry.data[CONF_CAN_INTERFACE]
             can_channel = entry.data[CONF_CAN_CHANNEL]
             can_bitrate = entry.data[CONF_CAN_BITRATE]
-            _LOGGER.info(
-                "CAN sensor with name: %s, interface: %s, channel: %s, bitrate: %s",
-                self.name,
-                can_interface,
-                can_channel,
-                can_bitrate,
-            )
+            _LOGGER.info("python-can with interface: %s, channel: %s, bitrate: %s",
+                         can_interface, can_channel, can_bitrate)
             self.gateway = PythonCanAsyncIOClient(
-                interface=can_interface,
-                channel=can_channel,
-                bitrate=can_bitrate,
-                exclude_pgns=pgn_exclude,
-                include_pgns=pgn_include,
-                preferred_units=preferred_units,
-                dump_to_file=dump_to_file,
-                dump_pgns=dump_pgns,
-                build_network_map=build_network_map,
-                include_manufacturer_code=include_manufacturer_code,
-                exclude_manufacturer_code=exclude_manufacturer_code,
-            )
+                interface=can_interface, channel=can_channel,
+                bitrate=can_bitrate, **common_kwargs)
+
         else:
-            raise Exception(f"mode {mode} not supported")
+            raise ValueError(f"Unsupported gateway type: {gateway_type}")
 
         # Set up callbacks for gateway events
         self.gateway.set_receive_callback(self.receive_callback)

@@ -7,10 +7,6 @@ from nmea2000 import State
 
 from custom_components.nmea2000.const import (
     DOMAIN,
-    CONF_MODE,
-    CONF_MODE_CAN,
-    CONF_MODE_USB,
-    CONF_MODE_TCP,
     CONF_CAN_INTERFACE,
     CONF_CAN_CHANNEL,
     CONF_CAN_BITRATE,
@@ -18,8 +14,8 @@ from custom_components.nmea2000.const import (
     CONF_BAUDRATE,
     CONF_IP,
     CONF_PORT,
-    CONF_DEVICE_TYPE,
 )
+from custom_components.nmea2000.config_flow import CONF_GATEWAY_TYPE, GatewayType
 from custom_components.nmea2000.hub import Hub
 
 
@@ -31,9 +27,9 @@ def _make_gateway_mock():
     return mock
 
 
-def _make_entry(hass, mode, extra_data=None):
-    """Create a MockConfigEntry with the given mode and extra data."""
-    data = {"name": "Test", CONF_MODE: mode}
+def _make_entry(hass, gateway_type: GatewayType, extra_data=None):
+    """Create a MockConfigEntry with the given gateway type and extra data."""
+    data = {"name": "Test", CONF_GATEWAY_TYPE: gateway_type.value}
     if extra_data:
         data.update(extra_data)
     entry = MockConfigEntry(domain=DOMAIN, data=data)
@@ -43,10 +39,10 @@ def _make_entry(hass, mode, extra_data=None):
 
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
 async def test_hub_creates_can_gateway(mock_can_cls, hass):
-    """Test Hub creates PythonCanAsyncIOClient for CAN mode."""
+    """Test Hub creates PythonCanAsyncIOClient for python_can gateway type."""
     mock_can_cls.return_value = _make_gateway_mock()
 
-    entry = _make_entry(hass, CONF_MODE_CAN, {
+    entry = _make_entry(hass, GatewayType.PYTHON_CAN, {
         CONF_CAN_INTERFACE: "socketcan",
         CONF_CAN_CHANNEL: "can0",
         CONF_CAN_BITRATE: 250000,
@@ -62,10 +58,10 @@ async def test_hub_creates_can_gateway(mock_can_cls, hass):
 
 @patch("custom_components.nmea2000.hub.WaveShareNmea2000Gateway")
 async def test_hub_creates_usb_gateway(mock_usb_cls, hass):
-    """Test Hub creates WaveShareNmea2000Gateway for USB mode."""
+    """Test Hub creates WaveShareNmea2000Gateway for waveshare gateway type."""
     mock_usb_cls.return_value = _make_gateway_mock()
 
-    entry = _make_entry(hass, CONF_MODE_USB, {
+    entry = _make_entry(hass, GatewayType.WAVESHARE, {
         CONF_SERIAL_PORT: "/dev/ttyUSB0",
         CONF_BAUDRATE: 2000000,
     })
@@ -77,11 +73,10 @@ async def test_hub_creates_usb_gateway(mock_usb_cls, hass):
 
 @patch("custom_components.nmea2000.hub.EByteNmea2000Gateway")
 async def test_hub_creates_tcp_ebyte_gateway(mock_tcp_cls, hass):
-    """Test Hub creates EByteNmea2000Gateway for TCP/EBYTE mode."""
+    """Test Hub creates EByteNmea2000Gateway for ebyte gateway type."""
     mock_tcp_cls.return_value = _make_gateway_mock()
 
-    entry = _make_entry(hass, CONF_MODE_TCP, {
-        CONF_DEVICE_TYPE: "EBYTE",
+    entry = _make_entry(hass, GatewayType.EBYTE, {
         CONF_IP: "192.168.1.100",
         CONF_PORT: 8881,
     })
@@ -92,10 +87,44 @@ async def test_hub_creates_tcp_ebyte_gateway(mock_tcp_cls, hass):
     assert mock_tcp_cls.call_args.kwargs["port"] == 8881
 
 
-async def test_hub_rejects_unknown_mode(hass):
-    """Test Hub raises an exception for unknown mode."""
-    entry = _make_entry(hass, "UNKNOWN_MODE")
-    with pytest.raises(Exception, match="not supported"):
+@patch("custom_components.nmea2000.hub.TextNmea2000Gateway")
+async def test_hub_creates_text_gateway(mock_text_cls, hass):
+    """Test Hub creates TextNmea2000Gateway for text gateway type."""
+    mock_text_cls.return_value = _make_gateway_mock()
+
+    entry = _make_entry(hass, GatewayType.TEXT, {
+        CONF_IP: "192.168.1.100",
+        CONF_PORT: 2000,
+    })
+    Hub(hass, entry)
+
+    mock_text_cls.assert_called_once()
+    assert mock_text_cls.call_args.kwargs["host"] == "192.168.1.100"
+    assert mock_text_cls.call_args.kwargs["port"] == 2000
+
+
+@patch("custom_components.nmea2000.hub.ActisenseBstNmea2000Gateway")
+async def test_hub_creates_actisense_bst_gateway(mock_bst_cls, hass):
+    """Test Hub creates ActisenseBstNmea2000Gateway for actisense_bst gateway type."""
+    mock_bst_cls.return_value = _make_gateway_mock()
+
+    entry = _make_entry(hass, GatewayType.ACTISENSE_BST, {
+        CONF_IP: "192.168.1.200",
+        CONF_PORT: 3000,
+    })
+    Hub(hass, entry)
+
+    mock_bst_cls.assert_called_once()
+    assert mock_bst_cls.call_args.kwargs["host"] == "192.168.1.200"
+    assert mock_bst_cls.call_args.kwargs["port"] == 3000
+
+
+async def test_hub_rejects_unknown_gateway_type(hass):
+    """Test Hub raises an exception for unknown gateway type."""
+    data = {"name": "Test", CONF_GATEWAY_TYPE: "unknown_type"}
+    entry = MockConfigEntry(domain=DOMAIN, data=data)
+    entry.add_to_hass(hass)
+    with pytest.raises((Exception, ValueError)):
         Hub(hass, entry)
 
 
@@ -104,7 +133,7 @@ async def test_hub_can_gateway_receives_pgn_filters(mock_can_cls, hass):
     """Test CAN gateway receives PGN include/exclude lists."""
     mock_can_cls.return_value = _make_gateway_mock()
 
-    entry = _make_entry(hass, CONF_MODE_CAN, {
+    entry = _make_entry(hass, GatewayType.PYTHON_CAN, {
         CONF_CAN_INTERFACE: "slcan",
         CONF_CAN_CHANNEL: "/dev/ttyUSB0",
         CONF_CAN_BITRATE: 250000,
@@ -123,7 +152,7 @@ async def test_hub_can_sets_callbacks(mock_can_cls, hass):
     mock_instance = _make_gateway_mock()
     mock_can_cls.return_value = mock_instance
 
-    entry = _make_entry(hass, CONF_MODE_CAN, {
+    entry = _make_entry(hass, GatewayType.PYTHON_CAN, {
         CONF_CAN_INTERFACE: "slcan",
         CONF_CAN_CHANNEL: "/dev/ttyUSB0",
         CONF_CAN_BITRATE: 250000,
@@ -139,7 +168,7 @@ async def test_hub_status_callback_connected(mock_can_cls, hass):
     """Test status callback sets Running state on CONNECTED."""
     mock_can_cls.return_value = _make_gateway_mock()
 
-    entry = _make_entry(hass, CONF_MODE_CAN, {
+    entry = _make_entry(hass, GatewayType.PYTHON_CAN, {
         CONF_CAN_INTERFACE: "slcan",
         CONF_CAN_CHANNEL: "/dev/ttyUSB0",
         CONF_CAN_BITRATE: 250000,
@@ -157,7 +186,7 @@ async def test_hub_status_callback_disconnected(mock_can_cls, hass):
     """Test status callback sets Disconnected state on DISCONNECTED."""
     mock_can_cls.return_value = _make_gateway_mock()
 
-    entry = _make_entry(hass, CONF_MODE_CAN, {
+    entry = _make_entry(hass, GatewayType.PYTHON_CAN, {
         CONF_CAN_INTERFACE: "slcan",
         CONF_CAN_CHANNEL: "/dev/ttyUSB0",
         CONF_CAN_BITRATE: 250000,
@@ -174,7 +203,7 @@ async def test_hub_hyphenated_name_creates_valid_sensors(mock_can_cls, hass):
     """Test Hub with hyphenated name creates sensors with sanitized unique IDs."""
     mock_can_cls.return_value = _make_gateway_mock()
 
-    entry = _make_entry(hass, CONF_MODE_CAN, {
+    entry = _make_entry(hass, GatewayType.PYTHON_CAN, {
         "name": "YDEN-02",
         CONF_CAN_INTERFACE: "socketcan",
         CONF_CAN_CHANNEL: "can0",

@@ -5,7 +5,8 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
 from homeassistant.helpers.start import async_at_start
-from .const import DOMAIN
+from .const import DOMAIN, CONF_MODE, CONF_MODE_USB, CONF_MODE_TCP, CONF_MODE_CAN, CONF_DEVICE_TYPE
+from .config_flow import CONF_GATEWAY_TYPE, GatewayType
 from .hub import Hub
 import logging
 import importlib.metadata
@@ -31,6 +32,41 @@ def _sync_library_logging():
     lib_level = _LOGGER.getEffectiveLevel()
     _NMEA2000_LOGGER.setLevel(lib_level)
     _NMEA2000_LOGGER.propagate = True  # Let it go through HA logging
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate config entries to the current version."""
+    _LOGGER.info("Migrating NMEA2000 config entry from version %s", entry.version)
+
+    if entry.version == 1:
+        # V1 used mode (USB/TCP/CAN) + device_type (for TCP sub-types).
+        # V2 uses a single gateway_type key.
+        data = {**entry.data}
+        mode = data.pop(CONF_MODE, None)
+        device_type = data.pop(CONF_DEVICE_TYPE, None)
+
+        if mode == CONF_MODE_USB:
+            gateway_type = GatewayType.WAVESHARE
+        elif mode == CONF_MODE_CAN:
+            gateway_type = GatewayType.PYTHON_CAN
+        elif mode == CONF_MODE_TCP:
+            if device_type == "EBYTE":
+                gateway_type = GatewayType.EBYTE
+            else:
+                # "Actisense", "Yacht Devices", "TCP", or missing → TEXT
+                gateway_type = GatewayType.TEXT
+        else:
+            _LOGGER.error("Unknown mode '%s' during migration", mode)
+            return False
+
+        data[CONF_GATEWAY_TYPE] = gateway_type.value
+        hass.config_entries.async_update_entry(entry, data=data, version=2)
+        _LOGGER.info(
+            "Migrated NMEA2000 config entry to v2: mode=%s, device_type=%s → gateway_type=%s",
+            mode, device_type, gateway_type.value,
+        )
+
+    return True
+
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the NMEA2000 integration."""

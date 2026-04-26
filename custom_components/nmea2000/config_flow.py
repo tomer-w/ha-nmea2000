@@ -38,11 +38,25 @@ MANUFACTURER_CODES = [
     for name in ManufacturerCodes
 ]
 
-class NetworkDeviceType(Enum):
-    """Enum for device types."""
-    EBYTE = "EBYTE"
-    ACTISENSE = "Actisense"
-    YACHT_DEVICES = "Yacht Devices"
+class GatewayType(Enum):
+    """Gateway type — determines transport, framing, and protocol."""
+    WAVESHARE = "waveshare"
+    EBYTE = "ebyte"
+    TEXT = "text"
+    ACTISENSE_BST = "actisense_bst"
+    PYTHON_CAN = "python_can"
+
+    @property
+    def needs_ip_port(self) -> bool:
+        return self in (GatewayType.EBYTE, GatewayType.TEXT, GatewayType.ACTISENSE_BST)
+
+    @property
+    def needs_serial_port(self) -> bool:
+        return self == GatewayType.WAVESHARE
+
+    @property
+    def needs_can_config(self) -> bool:
+        return self == GatewayType.PYTHON_CAN
 
 def get_manufacturer_selector(name: str) -> SelectSelector:
     """Create a manufacturer selector."""
@@ -55,51 +69,43 @@ def get_manufacturer_selector(name: str) -> SelectSelector:
         )
     )
 
-USB_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_SERIAL_PORT, default="/dev/ttyUSB0"): str,
-        vol.Required(CONF_BAUDRATE, default=2000000): int,
-        vol.Optional(CONF_PGN_INCLUDE): str,
-        vol.Optional(CONF_PGN_EXCLUDE): str,
-        vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
-        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
-        vol.Optional(CONF_MANUFACTURER_CODES_INCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_INCLUDE),
-        vol.Optional(CONF_MANUFACTURER_CODES_EXCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_EXCLUDE),
-        vol.Optional(CONF_EXPERIMENTAL): bool,
-    }
-)
+_COMMON_OPTIONS = {
+    vol.Optional(CONF_PGN_INCLUDE): str,
+    vol.Optional(CONF_PGN_EXCLUDE): str,
+    vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
+    vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
+    vol.Optional(CONF_MANUFACTURER_CODES_INCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_INCLUDE),
+    vol.Optional(CONF_MANUFACTURER_CODES_EXCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_EXCLUDE),
+    vol.Optional(CONF_EXPERIMENTAL): bool,
+}
 
-TCP_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_DEVICE_TYPE, default=NetworkDeviceType.EBYTE.value): vol.In(
-            [e.value for e in NetworkDeviceType]
-        ),
-        vol.Required(CONF_IP, default="192.168.0.46"): str,
-        vol.Required(CONF_PORT, default=8881): int,
-        vol.Optional(CONF_PGN_INCLUDE): str,
-        vol.Optional(CONF_PGN_EXCLUDE): str,
-        vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
-        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
-        vol.Optional(CONF_MANUFACTURER_CODES_INCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_INCLUDE),
-        vol.Optional(CONF_MANUFACTURER_CODES_EXCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_EXCLUDE),
-        vol.Optional(CONF_EXPERIMENTAL): bool,
-    }
-)
+_SERIAL_FIELDS = {
+    vol.Required(CONF_SERIAL_PORT, default="/dev/ttyUSB0"): str,
+    vol.Required(CONF_BAUDRATE, default=2000000): int,
+}
 
-CAN_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_CAN_INTERFACE, default="slcan"): str,
-        vol.Required(CONF_CAN_CHANNEL, default="/dev/ttyUSB0"): str,
-        vol.Required(CONF_CAN_BITRATE, default=250000): int,
-        vol.Optional(CONF_PGN_INCLUDE): str,
-        vol.Optional(CONF_PGN_EXCLUDE): str,
-        vol.Optional(CONF_MS_BETWEEN_UPDATES, default=5000): int,
-        vol.Optional(CONF_EXCLUDE_AIS, default=True): bool,
-        vol.Optional(CONF_MANUFACTURER_CODES_INCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_INCLUDE),
-        vol.Optional(CONF_MANUFACTURER_CODES_EXCLUDE): get_manufacturer_selector(CONF_MANUFACTURER_CODES_EXCLUDE),
-        vol.Optional(CONF_EXPERIMENTAL): bool,
-    }
-)
+_TCP_FIELDS = {
+    vol.Required(CONF_IP, default="192.168.0.46"): str,
+    vol.Required(CONF_PORT, default=8881): int,
+}
+
+_CAN_FIELDS = {
+    vol.Required(CONF_CAN_INTERFACE, default="slcan"): str,
+    vol.Required(CONF_CAN_CHANNEL, default="/dev/ttyUSB0"): str,
+    vol.Required(CONF_CAN_BITRATE, default=250000): int,
+}
+
+def _build_options_schema(gateway_type: GatewayType) -> vol.Schema:
+    """Build the options schema for the given gateway type."""
+    if gateway_type.needs_ip_port:
+        transport_fields = _TCP_FIELDS
+    elif gateway_type.needs_serial_port:
+        transport_fields = _SERIAL_FIELDS
+    elif gateway_type.needs_can_config:
+        transport_fields = _CAN_FIELDS
+    else:
+        transport_fields = {}
+    return vol.Schema({**transport_fields, **_COMMON_OPTIONS})
 
 def parse_and_validate_comma_separated_integers(input_str: str) -> list[int | str]:
     """Parse and validate a comma-separated string of integers."""
@@ -124,8 +130,20 @@ def parse_and_validate_comma_separated_integers(input_str: str) -> list[int | st
 
     return validated_integers
 
+CONF_GATEWAY_TYPE = "gateway_type"
+
+
+def _resolve_gateway_type(data: dict) -> GatewayType:
+    """Resolve gateway type from config data.
+
+    Expects the ``gateway_type`` key to be present — legacy configs should
+    have been migrated by ``async_migrate_entry`` before this is called.
+    """
+    return GatewayType(data[CONF_GATEWAY_TYPE])
+
+
 class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = 2
 
     async def async_step_user(self, user_input=None):
         _LOGGER.debug("async_step_user called with user_input: %s", user_input)
@@ -153,8 +171,11 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_NAME): str,
-                    vol.Required(CONF_MODE, default=CONF_MODE_USB): SelectSelector(
-                        SelectSelectorConfig(options=[CONF_MODE_USB, CONF_MODE_TCP, CONF_MODE_CAN])
+                    vol.Required(CONF_GATEWAY_TYPE, default=GatewayType.WAVESHARE.value): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[e.value for e in GatewayType],
+                            translation_key=CONF_GATEWAY_TYPE,
+                        )
                     ),
                 }
             ),
@@ -194,20 +215,12 @@ class NMEA2000ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.debug("No errors. Storing data: %s", new_data)
                 return self.async_create_entry(title=new_data.get(CONF_NAME), data=new_data)
 
+        gateway_type = GatewayType(self.data[CONF_GATEWAY_TYPE])
         return self.async_show_form(
             step_id="options",
-            data_schema=self._get_schema_for_mode(self.data[CONF_MODE]),
+            data_schema=_build_options_schema(gateway_type),
             errors=errors,
         )
-
-    @staticmethod
-    def _get_schema_for_mode(mode: str) -> vol.Schema:
-        """Return the appropriate schema for the given mode."""
-        if mode == CONF_MODE_USB:
-            return USB_DATA_SCHEMA
-        if mode == CONF_MODE_CAN:
-            return CAN_DATA_SCHEMA
-        return TCP_DATA_SCHEMA
 
     @staticmethod
     @callback
@@ -252,8 +265,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             if len(errors) == 0:
                 new_data = user_input
-                # merge back the name and mode which are missing from this page
-                new_data.update({k: current_data[k] for k in [CONF_NAME, CONF_MODE]})
+                # merge back the name and gateway_type which are missing from this page
+                new_data.update({k: current_data[k] for k in [CONF_NAME, CONF_GATEWAY_TYPE]})
                 _LOGGER.debug("New data after processing user_input: %s", new_data)
                 # Update the config entry with new data.
                 self.hass.config_entries.async_update_entry(
@@ -265,10 +278,11 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 _LOGGER.debug("data updated with user input. New data: %s", user_input)
                 return self.async_create_entry(title="", data=None)
 
+        gateway_type = _resolve_gateway_type(current_data)
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
-                NMEA2000ConfigFlow._get_schema_for_mode(current_data[CONF_MODE]),
+                _build_options_schema(gateway_type),
                 current_data,
             ),
             errors=errors

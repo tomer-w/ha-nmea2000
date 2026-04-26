@@ -1,5 +1,16 @@
 {
   "title": "NMEA 2000 Gateway",
+  "selector": {
+    "gateway_type": {
+      "options": {
+        "waveshare": "Waveshare USB-CAN-A",
+        "ebyte": "EByte ECAN-E01, ECAN-W01S",
+        "text": "Text TCP — Actisense W2K-1 / PRO-NDC-1E2K (CAN ASCII mode), Yacht Devices YDEN-02",
+        "actisense_bst": "Actisense BST — Actisense PRO-NDC-1E2K (CAN Actisense mode)",
+        "python_can": "python-can"
+      }
+    }
+  },
   "config": {
     "error": {
       "name_exists": "This device name is already in use, please choose a different one.",
@@ -11,7 +22,7 @@
         "description": "Choose the gateway device name in Home Assistant.",
         "data": {
           "name": "Gateway Name",
-          "mode": "Gateway type:"
+          "gateway_type": "Gateway Type"
         }
       },
       "options": {
@@ -28,7 +39,6 @@
           "pgn_exclude": "PGNs to exclude (comma-separated list)",
           "exclude_AIS": "Exclude all AIS PGNs (those keep generating new targets)",
           "ms_between_updates": "Number of milliseconds between updates (0=Update always)",
-          "device_type": "TCP Device Type",
           "experimental": "Experimental features",
           "manufacturer_codes_include": "Manufacturers to include",
           "manufacturer_codes_exclude": "Manufacturers to exclude"
@@ -60,7 +70,6 @@
           "pgn_exclude": "PGNs to exclude (comma-separated list)",
           "exclude_AIS": "Exclude all AIS PGNs (those keep generating new targets)",
           "ms_between_updates": "Number of milliseconds between updates (0=Update always)",
-          "device_type": "TCP Device Type",
           "experimental": "Experimental features",
           "manufacturer_codes_include": "Manufacturers to include",
           "manufacturer_codes_exclude": "Manufacturers to exclude"
