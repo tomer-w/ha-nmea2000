@@ -282,14 +282,14 @@ async def test_receive_callback_expands_list_field(mock_can_cls, hass):
     await hub.receive_callback(msg)
 
     sensor_ids = {s._attr_unique_id: s for s in added if hasattr(s, '_attr_unique_id')}
-    voltage_sensors = [s for sid, s in sensor_ids.items() if "voltage_0" in sid]
+    voltage_sensors = [s for sid, s in sensor_ids.items() if sid.endswith("_voltage")]
     assert len(voltage_sensors) == 1
     assert voltage_sensors[0]._attr_native_value == 230.5
     assert voltage_sensors[0]._attr_native_unit_of_measurement == "V"
     assert voltage_sensors[0]._attr_name == "Voltage"
 
-    assert any("current_0" in sid for sid in sensor_ids)
-    assert any("frequency_0" in sid for sid in sensor_ids)
+    assert any(sid.endswith("_current") for sid in sensor_ids)
+    assert any(sid.endswith("_frequency") for sid in sensor_ids)
 
 
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
@@ -309,11 +309,11 @@ async def test_receive_callback_list_field_none_value(mock_can_cls, hass):
     await hub.receive_callback(msg)
 
     sensor_ids = {s._attr_unique_id: s for s in added if hasattr(s, '_attr_unique_id')}
-    voltage_sensors = [s for sid, s in sensor_ids.items() if "voltage_0" in sid]
+    voltage_sensors = [s for sid, s in sensor_ids.items() if sid.endswith("_voltage")]
     assert len(voltage_sensors) == 1
     assert voltage_sensors[0]._attr_native_value is None
 
-    accept_sensors = [s for sid, s in sensor_ids.items() if "acceptability_0" in sid]
+    accept_sensors = [s for sid, s in sensor_ids.items() if sid.endswith("_acceptability")]
     assert len(accept_sensors) == 1
     assert accept_sensors[0]._attr_native_value == "Good"
 
@@ -337,7 +337,7 @@ async def test_receive_callback_list_field_skips_reserved(mock_can_cls, hass):
 
     sensor_ids = [s._attr_unique_id for s in added if hasattr(s, '_attr_unique_id')]
     assert not any("reserved" in sid for sid in sensor_ids)
-    assert any("voltage_0" in sid for sid in sensor_ids)
+    assert any(sid.endswith("_voltage") for sid in sensor_ids)
 
 
 @patch("custom_components.nmea2000.hub.PythonCanAsyncIOClient")
@@ -361,9 +361,10 @@ async def test_receive_callback_list_field_multiple_entries(mock_can_cls, hass):
     await hub.receive_callback(msg)
 
     sensor_ids = [s._attr_unique_id for s in added if hasattr(s, '_attr_unique_id')]
-    assert any("voltage_0" in sid for sid in sensor_ids)
+    # First entry has no suffix, second entry has _1
+    assert any(sid.endswith("_voltage") for sid in sensor_ids)
     assert any("voltage_1" in sid for sid in sensor_ids)
-    assert any("current_0" in sid for sid in sensor_ids)
+    assert any(sid.endswith("_current") for sid in sensor_ids)
     assert any("current_1" in sid for sid in sensor_ids)
 
 
@@ -380,7 +381,7 @@ async def test_receive_callback_list_field_updates_existing_sensors(mock_can_cls
     ])
     await hub.receive_callback(msg)
 
-    voltage_sensor = next(s for s in added if "voltage_0" in s._attr_unique_id)
+    voltage_sensor = next(s for s in added if s._attr_unique_id.endswith("_voltage"))
     voltage_sensor._ready = True
     voltage_sensor.async_schedule_update_ha_state = MagicMock()
 

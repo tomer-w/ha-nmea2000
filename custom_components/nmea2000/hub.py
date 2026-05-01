@@ -469,9 +469,11 @@ class Hub:
                         if sub_field.type in (FieldTypes.RESERVED, FieldTypes.SPARE):
                             continue
 
-                        sub_sensor_id = (
-                            f"{sensor_name_prefix}{sub_field_id}_{entry_idx}"
-                        )
+                        # Omit index suffix for first entry for backwards compatibility
+                        if entry_idx == 0:
+                            sub_sensor_id = f"{sensor_name_prefix}{sub_field_id}"
+                        else:
+                            sub_sensor_id = f"{sensor_name_prefix}{sub_field_id}_{entry_idx}"
                         self._update_or_create_sensor(
                             sub_sensor_id,
                             sub_field.name,
