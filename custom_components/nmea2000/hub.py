@@ -361,6 +361,7 @@ class Hub:
         unit_of_measurement,
         device_name: str,
         message: NMEA2000Message,
+        is_numeric: bool | None = None,
     ) -> None:
         """Create a new sensor or update an existing one."""
         sensor = self.sensors.get(sensor_id)
@@ -375,6 +376,7 @@ class Hub:
                 update_frequncy=self.time_between_updates,
                 ttl=message.ttl,
                 manufacturer=str(message.source_iso_name),
+                is_numeric=is_numeric,
             )
             _LOGGER.info(
                 "Created new sensor for %s: %s, source: %d, destination: %d, source_iso_name: %s, hash: %s",
@@ -473,7 +475,9 @@ class Hub:
                         if entry_idx == 0:
                             sub_sensor_id = f"{sensor_name_prefix}{sub_field_id}"
                         else:
-                            sub_sensor_id = f"{sensor_name_prefix}{sub_field_id}_{entry_idx}"
+                            sub_sensor_id = (
+                                f"{sensor_name_prefix}{sub_field_id}_{entry_idx}"
+                            )
                         self._update_or_create_sensor(
                             sub_sensor_id,
                             sub_field.name,
@@ -481,6 +485,7 @@ class Hub:
                             sub_field.unit_of_measurement,
                             device_name,
                             message,
+                            is_numeric=sub_field.is_numeric,
                         )
                 continue
 
@@ -514,6 +519,7 @@ class Hub:
                 field.unit_of_measurement,
                 device_name,
                 message,
+                is_numeric=getattr(field, "is_numeric", None),
             )
 
     async def start(self, _event=None) -> None:

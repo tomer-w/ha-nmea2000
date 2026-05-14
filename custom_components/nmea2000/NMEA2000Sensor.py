@@ -10,9 +10,11 @@ DEFAULT_UPDATE_INTERVAL = timedelta(minutes=5)
 INFINITE_DURATION = timedelta(days=10**6)
 UNAVAILABLE_FACTOR = 10
 
+
 # SmartSensor class representing a basic sensor entity with state
 class NMEA2000Sensor(SensorEntity):
     """Representation of a NMEA2000 sensor."""
+
     _attr_should_poll = False
 
     def __init__(
@@ -25,17 +27,33 @@ class NMEA2000Sensor(SensorEntity):
         via_device: str | None = None,
         update_frequncy: timedelta | None = None,
         ttl: timedelta | None = None,
-        manufacturer: str | None = None
+        manufacturer: str | None = None,
+        is_numeric: bool | None = None,
     ) -> None:
         """Initialize the sensor."""
-        need_state_class = isinstance(initial_state, (int, float))
-        _LOGGER.info("Initializing NMEA2000Sensor: sensor_id=%s, friendly_name=%s, initial_state: %s (%s), unit_of_measurement=%s, device_name=%s, via_device=%s, update_frequncy=%s, ttl=%s, need_state_class=%s",
-                      sensor_id, friendly_name, initial_state, type(initial_state), unit_of_measurement, device_name, via_device, update_frequncy, ttl, need_state_class)
+        need_state_class = (
+            is_numeric
+            if is_numeric is not None
+            else isinstance(initial_state, (int, float))
+        )
+        _LOGGER.info(
+            "Initializing NMEA2000Sensor: sensor_id=%s, friendly_name=%s, initial_state: %s (%s), unit_of_measurement=%s, device_name=%s, via_device=%s, update_frequncy=%s, ttl=%s, need_state_class=%s",
+            sensor_id,
+            friendly_name,
+            initial_state,
+            type(initial_state),
+            unit_of_measurement,
+            device_name,
+            via_device,
+            update_frequncy,
+            ttl,
+            need_state_class,
+        )
         self._attr_unique_id = sensor_id.lower().replace(" ", "_").replace("-", "_")
         self._attr_name = friendly_name
         self._device_name = device_name
         self._attr_native_value = initial_state
-        if need_state_class: # HA will take units only for numerical data
+        if need_state_class:  # HA will take units only for numerical data
             self._attr_native_unit_of_measurement = unit_of_measurement
             self._attr_state_class = SensorStateClass.MEASUREMENT
         self._attr_device_info = DeviceInfo(
@@ -43,12 +61,15 @@ class NMEA2000Sensor(SensorEntity):
             manufacturer=manufacturer if manufacturer is not None else "NMEA 2000",
             model=device_name,
             name=device_name,
-            via_device=((DOMAIN, via_device) if via_device is not None else None))
+            via_device=((DOMAIN, via_device) if via_device is not None else None),
+        )
         self._last_updated = self._last_seen = datetime.now()
-        self.update_frequncy = DEFAULT_UPDATE_INTERVAL if update_frequncy is None else update_frequncy
-        self.ttl = INFINITE_DURATION if ttl is None else ttl*UNAVAILABLE_FACTOR
+        self.update_frequncy = (
+            DEFAULT_UPDATE_INTERVAL if update_frequncy is None else update_frequncy
+        )
+        self.ttl = INFINITE_DURATION if ttl is None else ttl * UNAVAILABLE_FACTOR
         self._ready = False
-            
+
         if initial_state is None:
             self._available = False
             _LOGGER.info("Creating sensor: '%s' as unavailable", self._attr_name)
@@ -78,23 +99,31 @@ class NMEA2000Sensor(SensorEntity):
 
     def update_availability(self):
         """Update the availability status of the sensor."""
-        
+
         if not self._ready:
-            _LOGGER.warning("skipping update_availability as not ready. sensor: %s", self.entity_id)
+            _LOGGER.warning(
+                "skipping update_availability as not ready. sensor: %s", self.entity_id
+            )
             return
 
         availability_delta = datetime.now() - self._last_seen
         new_availability = availability_delta < self.ttl
 
         if self._available != new_availability:
-            _LOGGER.warning("Setting sensor:'%s' as unavailable. Didnt see a message for %s", self.entity_id, availability_delta)
+            _LOGGER.warning(
+                "Setting sensor:'%s' as unavailable. Didnt see a message for %s",
+                self.entity_id,
+                availability_delta,
+            )
             self._available = new_availability
             self.async_schedule_update_ha_state()
 
-    def set_state(self, new_state, ignore_tracing = False):
+    def set_state(self, new_state, ignore_tracing=False):
         """Set the state of the sensor."""
         if not self._ready:
-            _LOGGER.warning("skipping set_state as not ready. sensor: %s", self.entity_id)
+            _LOGGER.warning(
+                "skipping set_state as not ready. sensor: %s", self.entity_id
+            )
             return
 
         should_update = False
@@ -111,13 +140,20 @@ class NMEA2000Sensor(SensorEntity):
 
         if (not should_update) and (now - self._last_updated) < self.update_frequncy:
             # If the update frequency is not met, bail out without any changes
-            _LOGGER.debug("Skipping update for sensor:'%s' as of update frequency", self.entity_id)
+            _LOGGER.debug(
+                "Skipping update for sensor:'%s' as of update frequency", self.entity_id
+            )
             return
-        
+
         if new_state != old_state:
             # Since the state is valid, update the sensor's state
             if not ignore_tracing:
-                _LOGGER.debug("Setting state for sensor: '%s' to %s from %s", self.entity_id, new_state, old_state)
+                _LOGGER.debug(
+                    "Setting state for sensor: '%s' to %s from %s",
+                    self.entity_id,
+                    new_state,
+                    old_state,
+                )
             should_update = True
 
         if should_update:

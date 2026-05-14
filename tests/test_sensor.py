@@ -1,6 +1,9 @@
 """Tests for the NMEA2000Sensor entity."""
+
 from datetime import timedelta
 from unittest.mock import patch, MagicMock
+
+from homeassistant.components.sensor import SensorStateClass
 
 from custom_components.nmea2000.NMEA2000Sensor import NMEA2000Sensor
 
@@ -158,3 +161,32 @@ async def test_sensor_multiple_special_chars_sanitized(hass):
     assert "-" not in sensor._attr_unique_id
     assert " " not in sensor._attr_unique_id
     assert sensor._attr_unique_id == "my_device_name_test"
+
+
+async def test_sensor_is_numeric_overrides_isinstance(hass):
+    """Test that is_numeric parameter overrides isinstance check."""
+    # String value but is_numeric=True should get state_class
+    sensor = NMEA2000Sensor(
+        sensor_id="test_numeric_override",
+        friendly_name="Numeric Override",
+        initial_state="42",
+        unit_of_measurement="°C",
+        device_name="Test Device",
+        is_numeric=True,
+    )
+    assert sensor._attr_state_class == SensorStateClass.MEASUREMENT
+    assert sensor._attr_native_unit_of_measurement == "°C"
+
+
+async def test_sensor_is_numeric_false_overrides_isinstance(hass):
+    """Test that is_numeric=False prevents state_class even for numeric values."""
+    sensor = NMEA2000Sensor(
+        sensor_id="test_not_numeric",
+        friendly_name="Not Numeric",
+        initial_state=42,
+        unit_of_measurement="°C",
+        device_name="Test Device",
+        is_numeric=False,
+    )
+    assert not hasattr(sensor, "_attr_state_class")
+    assert not hasattr(sensor, "_attr_native_unit_of_measurement")
