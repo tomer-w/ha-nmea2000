@@ -4,6 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.start import async_at_start
 from .const import DOMAIN, CONF_MODE, CONF_MODE_USB, CONF_MODE_TCP, CONF_MODE_CAN, CONF_DEVICE_TYPE
 from .config_flow import CONF_GATEWAY_TYPE, GatewayType
@@ -103,3 +104,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await hub.stop(None)
 
     return True
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: ConfigEntry, device_entry: dr.DeviceEntry
+) -> bool:
+    """Allow users to remove discovered devices without active entities."""
+    if (DOMAIN, "NMEA 2000 Gateway") in device_entry.identifiers:
+        return False
+
+    entity_registry = er.async_get(hass)
+    return not er.async_entries_for_device(
+        entity_registry, device_entry.id, include_disabled_entities=False
+    )
