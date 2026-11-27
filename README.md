@@ -12,7 +12,7 @@ A Home Assistant integration that brings marine data to your smart home. Automat
 
 - **Plug & Play** - Automatic sensor creation from detected messages
 - **USB gateways**: CANBUS USB devices like [Waveshare USB-CAN-A](https://www.waveshare.com/wiki/USB-CAN-A)
-- **CAN adapter gateways**: Any generic USB or SocketCAN device supported by [python-can](https://python-can.readthedocs.io/) (e.g. Canable, Seeedstudio, SocketCAN on Linux/Raspberry Pi)
+- **CAN adapter gateways**: Any generic USB or SocketCAN device supported by [python-can](https://python-can.readthedocs.io/) (e.g. Canable, Seeedstudio, CSS Electronics CANsub, SocketCAN on Linux/Raspberry Pi)
 - **TCP gateways**: CANBUS TCP devices like:
      - [EBYTE ECAN-W01S](https://www.cdebyte.com/products/ECAN-W01S)
      - [EBYTE ECAN-E01](https://www.cdebyte.com/products/ECAN-E01)
