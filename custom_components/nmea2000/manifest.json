@@ -11,7 +11,8 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/tomer-w/ha-nmea2000/issues",
   "requirements": [
-    "nmea2000==2026.10.0"
+    "nmea2000==2026.10.0",
+    "python-can-cansub==2026.9.28"
   ],
   "version": "2026.10.1"
 }
